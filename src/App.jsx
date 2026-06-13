@@ -307,6 +307,13 @@ export default function App() {
   };
 
   const saveCurrentDayToHistory = () => {
+    const categoryTotals = { mobility: 0, diet: 0, appliances: 0, energy: 0 };
+    activities.forEach(act => {
+      if (categoryTotals[act.category] !== undefined) {
+        categoryTotals[act.category] += act.carbon_impact_kg;
+      }
+    });
+
     const todayFootprint = {
       date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       timestamp: Date.now(),
