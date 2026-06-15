@@ -40,7 +40,9 @@ export default function CarbonCoefficients({
           <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Carbon Coefficients</h4>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-emerald-400 font-medium bg-emerald-950/30 border border-emerald-900/50 px-2 py-0.5 rounded-full">Dynamic Recalculation</span>
+          <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-950/30 border border-emerald-900/40 px-2 py-0.5 rounded-full">
+            Dynamic System
+          </span>
           <span className="text-zinc-500 text-xs font-mono">
             {showConfig ? '▲' : '▼'}
           </span>
@@ -49,14 +51,14 @@ export default function CarbonCoefficients({
 
       <div className={`space-y-4 pt-3 ${showConfig ? 'block' : 'hidden md:block'}`}>
         <p className="text-xs text-zinc-500 mb-4 leading-relaxed font-sans">
-          Customize the scientific factors (kg CO₂e) to inspect environmental recalculations instantly.
+          Customize factors (kg CO₂e) to test algorithmic recalculations instantly.
         </p>
 
-        <div className="grid grid-cols-1 gap-2 p-1 max-h-80 overflow-y-auto pr-1 custom-scroll">
+        <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-1 custom-scroll">
           {coefficientList.map((factor) => (
             <div 
               key={factor.key} 
-              className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 transition-all group"
+              className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/20 border border-zinc-900 hover:border-zinc-800 transition-all group"
             >
               <span className="text-xs text-zinc-400 font-medium group-hover:text-zinc-300 transition-colors">
                 {factor.label}
@@ -67,8 +69,8 @@ export default function CarbonCoefficients({
                   step={factor.step}
                   value={factors[factor.key]}
                   onChange={(e) => handleFactorChange(factor.key, e.target.value)}
-                  aria-label={factor.label}
-                  className="w-16 bg-zinc-950 text-right text-xs font-mono font-bold text-emerald-400 px-2 py-1 rounded border border-zinc-800 focus:outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                  aria-label={`${factor.label} coefficient`}
+                  className="w-16 bg-zinc-950 text-right text-xs font-mono font-bold text-emerald-400 px-2 py-1 rounded border border-zinc-800/80 focus:outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 />
                 <span className="text-[10px] text-zinc-600 font-mono w-8">{factor.unit}</span>
               </div>
@@ -89,4 +91,5 @@ export default function CarbonCoefficients({
     </div>
   );
 }
+
 
