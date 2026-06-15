@@ -191,3 +191,5 @@ app.post('/api/parse', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Secure Gemini Proxy Server listening on port ${PORT}`);
 });
+
+export default app;
