@@ -661,6 +661,7 @@ export default function App() {
                     </div>
                   </form>
                 </div>
+              </div>
 
               {/* Config & Activity Logs Area */}
               <div className="bg-[#0e1423]/90 border border-zinc-800/50 rounded-xl p-6 shadow-xl space-y-6">
@@ -840,7 +841,6 @@ export default function App() {
                   )}
                 </div>
               </div>
-            </div>
 
               {/* Slider Coefficients Configuration */}
               <CarbonCoefficients 
