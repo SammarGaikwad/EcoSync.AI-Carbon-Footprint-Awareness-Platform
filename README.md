@@ -14,6 +14,10 @@ The application implements a decoupled, dual-engine processing framework optimiz
    - **Offline Regex Engine:** A lightweight, local processing tokenized string matcher that runs entirely client-side with minimal computing overhead.
    - **Gemini 2.5 AI Engine:** A structured natural language processing engine that enforces strict schema compliance to isolate unstructured data into uniform data objects without code block syntax formatting wrappers.
 2. **Deterministic Calculation Core:** A centralized logic layer that maps the structured data objects against real-time, user-adjustable **Carbon Coefficients** (custom slider states), eliminating rendering lag and multi-pass state recalculations.
+3. **Optimized Client-Side Caching:** Caches the parsed telemetry payload. Moving the coefficient sliders triggers instant client-side recalculations on the cached payload, completely eliminating redundant, expensive API calls.
+4. **Vercel Serverless Function Deployment:** Features Zero Config deployment via `api/parse.js`, mapping the Express proxy server onto Vercel serverless functions for edge API hosting.
+5. **Input Sanitization & Validation:** Enforces strict parameter type checks, maximum input limits (2,000 characters), and HTML tag stripping on the backend server to defend against XSS and DoS attacks.
+6. **Inclusive Accessible UI (WCAG 2.1):** Integrates semantic `aria-label` tags on all sliders/controls and wraps the Eco Avatar SVG with screen reader attributes. Features robust `focus-visible` focus rings for keyboard-only users.
 
 ```text
   [Raw User Text Log] ---> [Parsing Engine Selector] 
