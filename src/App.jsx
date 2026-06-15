@@ -604,14 +604,14 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-4 border-t border-zinc-900 mt-4">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-mono text-zinc-500">Presets:</span>
+                        <span className="text-xs text-zinc-500">Presets:</span>
                         <button 
                           type="button" 
                           onClick={() => handlePresetSelect("eco")} 
                           aria-label="Load Eco Day Preset"
-                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none cursor-pointer"
                         >
                           🌱 Eco Day
                         </button>
@@ -619,7 +619,7 @@ export default function App() {
                           type="button" 
                           onClick={() => handlePresetSelect("commute")} 
                           aria-label="Load Commuter Preset"
-                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none cursor-pointer"
                         >
                           🚗 Commuter
                         </button>
@@ -627,18 +627,18 @@ export default function App() {
                           type="button" 
                           onClick={() => handlePresetSelect("mixed")} 
                           aria-label="Load Mixed Logs Preset"
-                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none cursor-pointer"
                         >
                           ⚡ Mixed Logs
                         </button>
                       </div>
 
-                      <div className="flex gap-2 w-full sm:w-auto">
+                      <div className="flex items-center gap-3 w-full sm:w-auto">
                         <button 
                           type="button" 
                           onClick={handleClear} 
                           aria-label="Clear current log and results"
-                          className="w-full sm:w-auto bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 text-zinc-300 hover:text-rose-400 text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
+                          className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-rose-400 border border-zinc-800 hover:border-rose-950 rounded-lg bg-zinc-950 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
                         >
                           Clear
                         </button>
@@ -646,27 +646,26 @@ export default function App() {
                           type="button"
                           onClick={saveCurrentDayToHistory}
                           aria-label="Save current day to weekly history"
-                          className="w-full sm:w-auto bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 text-zinc-300 hover:text-white text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="px-3 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-800 hover:bg-zinc-900 rounded-lg bg-zinc-950 transition-all flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
-                          <Clipboard className="w-3.5 h-3.5" /> Save Day
+                          💾 Save Day
                         </button>
                         <button 
                           type="submit" 
                           disabled={isProcessing}
                           aria-label="Parse log and compute footprint"
-                          className="w-full sm:w-auto bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-black font-semibold px-6 py-2.5 rounded-lg text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-500/10 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="px-5 py-1.5 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-lg shadow-emerald-950/20 transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           {isProcessing ? (
                             <span className="animate-spin inline-block w-4 h-4 border-2 border-black border-t-transparent rounded-full"></span>
                           ) : (
-                            <>Parse Log <ArrowUpRight className="w-3.5 h-3.5" /></>
+                            <>PARSE LOG <span className="text-[10px]">↗</span></>
                           )}
                         </button>
                       </div>
                     </div>
                   </form>
                 </div>
-              </div>
 
               {/* Config & Activity Logs Area */}
               <div className="bg-[#0e1423]/90 border border-zinc-800/50 rounded-xl p-6 shadow-xl space-y-6">
@@ -699,9 +698,14 @@ export default function App() {
                     <div className="space-y-3 pt-2">
                       <h4 className="text-xs font-mono uppercase text-zinc-400 tracking-wider">Activity Stream</h4>
                       {activities.length === 0 ? (
-                        <div className="border border-dashed border-zinc-700/80 rounded-lg p-8 text-center text-sm text-zinc-400 bg-zinc-950/20">
-                          <AlertCircle className="w-8 h-8 text-zinc-500 mx-auto mb-2 animate-pulse" />
-                          No environmental activities currently parsed. Load a preset or enter text above!
+                        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-950/50 text-center">
+                          <div className="p-3 bg-zinc-900 rounded-full text-zinc-600 mb-3 animate-pulse">
+                            🌱
+                          </div>
+                          <p className="text-sm font-medium text-zinc-400">Waiting for Carbon Logs</p>
+                          <p className="text-xs text-zinc-500 mt-1 max-w-[250px]">
+                            Load a preset above or type your daily routine to stream live environmental impact data.
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-80 overflow-y-auto pr-1 custom-scroll">
@@ -844,6 +848,7 @@ export default function App() {
                   )}
                 </div>
               </div>
+            </div>
 
               {/* Slider Coefficients Configuration */}
               <CarbonCoefficients 
