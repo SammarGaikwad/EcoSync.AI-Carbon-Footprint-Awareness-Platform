@@ -375,7 +375,7 @@ export default function EcoAvatar({ netImpact, avatarState }) {
       <div className="w-full text-center mt-3 space-y-1 z-10">
         <h4 className="text-white font-bold text-base tracking-tight">"{level}"</h4>
         <p className="text-[11px] font-mono text-zinc-400 truncate">{badge.impactText}</p>
-        <p className="text-[10px] text-zinc-500 font-sans leading-tight mt-0.5 line-clamp-2 min-h-8">
+        <p className="text-[10px] text-zinc-400 font-sans leading-tight mt-0.5 line-clamp-2 min-h-8">
           {desc}
         </p>
       </div>

@@ -1,7 +1,4 @@
-/**
- * EcoSync.AI - Telemetry Validation Suite
- * Aligned with Hack2Skill evaluation parameters for Testing and Functional Validation.
- */
+import { describe, test, expect } from 'vitest';
 import { calculateDailyImpact } from '../utils/calculationCore.js';
 
 describe('EcoSync.AI Calculation Core Validation', () => {

@@ -9,6 +9,9 @@ import {
 import { parseLocalLog, parseWithGeminiAI } from './utils/parserEngine';
 import { calculateDailyImpact } from './utils/calculationCore';
 import EcoAvatar from './components/EcoAvatar';
+import CarbonCoefficients from './components/CarbonCoefficients';
+import ImpactCategories from './components/ImpactCategories';
+import DeveloperConsole from './components/DeveloperConsole';
 
 // Scientific default coefficients (kg CO2e)
 const SCIENTIFIC_DEFAULTS = {
@@ -39,6 +42,7 @@ Ran the air conditioner for 5 hours in the evening.`
 
 export default function App() {
   // --- React State ---
+  const [draftPrompt, setDraftPrompt] = useState("");
   const [prompt, setPrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("breakdown"); // "breakdown" | "json"
@@ -115,6 +119,19 @@ export default function App() {
       return "Please share details about your transportation, meals, or appliance usage today to calculate your environmental footprint.";
     }
 
+    const metroActivity = activitiesList.find(a => a.category === 'mobility' && a._savings_kg > 0 && a.description.toLowerCase().includes('metro'));
+    const veganActivity = activitiesList.find(a => a.category === 'diet' && a._savings_kg > 0 && (a.description.toLowerCase().includes('vegan') || a.description.toLowerCase().includes('low-impact') || a.description.toLowerCase().includes('salad')));
+
+    if (metroActivity && veganActivity) {
+      return `Outstanding choice! By commuting by metro and opting for a plant-based meal, you saved ${totalSaved.toFixed(1)} kg of CO₂ today. Great job!`;
+    }
+    if (metroActivity) {
+      return `Great job on taking the metro! You saved ${metroActivity._savings_kg.toFixed(1)} kg of CO₂ today compared to driving.`;
+    }
+    if (veganActivity) {
+      return `Excellent diet choice! Eating a low-impact meal saved you ${veganActivity._savings_kg.toFixed(1)} kg of CO₂ today.`;
+    }
+
     let catTotals = { mobility: 0, diet: 0, appliances: 0, energy: 0 };
     activitiesList.forEach(act => {
       catTotals[act.category] += act.carbon_impact_kg;
@@ -130,23 +147,23 @@ export default function App() {
     });
 
     if (totalSaved > 2.0) {
-      return `Outstanding work saving ${totalSaved.toFixed(1)} kg CO2e today by choosing sustainable transit and meal alternatives—keep it up!`;
+      return `Outstanding work saving ${totalSaved.toFixed(1)} kg CO₂e today by choosing sustainable transit and meal alternatives—keep it up!`;
     }
 
     if (maxCat === "mobility" && maxVal > 0) {
-      return `Your mobility choices contributed ${maxVal.toFixed(1)} kg CO2e; try choosing public rail, metro transit, or electric scooters for your next commute.`;
+      return `Your mobility choices contributed ${maxVal.toFixed(1)} kg CO₂e; try choosing public rail, metro transit, or electric scooters for your next commute.`;
     }
 
     if (maxCat === "diet" && maxVal > 0) {
-      return `Your diet contributed ${maxVal.toFixed(1)} kg CO2e today; incorporating more low-impact vegetarian or plant-based meals can drastically reduce this footprint.`;
+      return `Your diet contributed ${maxVal.toFixed(1)} kg CO₂e today; incorporating more low-impact vegetarian or plant-based meals can drastically reduce this footprint.`;
     }
 
     if (maxCat === "appliances" && maxVal > 0) {
-      return `High-draw appliances contributed ${maxVal.toFixed(1)} kg CO2e today; consider using natural ventilation, setting geyser timers, or using appliance eco-modes.`;
+      return `High-draw appliances contributed ${maxVal.toFixed(1)} kg CO₂e today; consider using natural ventilation, setting geyser timers, or using appliance eco-modes.`;
     }
 
     if (maxCat === "energy" && maxVal > 0) {
-      return `Your grid energy consumption contributed ${maxVal.toFixed(1)} kg CO2e today; consider transitioning to solar or green energy providers to lower this footprint.`;
+      return `Your grid energy consumption contributed ${maxVal.toFixed(1)} kg CO₂e today; consider transitioning to solar or green energy providers to lower this footprint.`;
     }
 
     return "Small daily adjustments like choosing rail transits or low-impact diet options can help you lower your carbon footprint tomorrow.";
@@ -283,22 +300,24 @@ export default function App() {
   // Run parser on change of prompt or factors
   const handleAISubmit = async (e) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!draftPrompt.trim()) return;
 
+    setPrompt(draftPrompt);
     if (parserMode === "local") {
       setIsProcessing(true);
       setTimeout(() => {
-        executeCalculation(prompt, factors, "local");
+        executeCalculation(draftPrompt, factors, "local");
         setIsProcessing(false);
       }, 350);
     } else {
-      await executeCalculation(prompt, factors, "gemini");
+      await executeCalculation(draftPrompt, factors, "gemini");
     }
   };
 
   // Re-run instantly when coefficients change
   const handleFactorChange = (key, value) => {
-    const updated = { ...factors, [key]: parseFloat(value) };
+    const parsedVal = isNaN(parseFloat(value)) ? 0.0 : parseFloat(value);
+    const updated = { ...factors, [key]: parsedVal };
     setFactors(updated);
     if (prompt.trim()) {
       executeCalculation(prompt, updated, parserMode);
@@ -314,12 +333,14 @@ export default function App() {
 
   const handlePresetSelect = (presetKey) => {
     if (PRESETS[presetKey]) {
+      setDraftPrompt(PRESETS[presetKey]);
       setPrompt(PRESETS[presetKey]);
       executeCalculation(PRESETS[presetKey], factors, parserMode);
     }
   };
 
   const handleClear = () => {
+    setDraftPrompt("");
     setPrompt("");
     setActivities([]);
     setSummary({ total_emitted_kg: 0.0, total_saved_kg: 0.0 });
@@ -517,7 +538,7 @@ export default function App() {
               <h3 className="text-3xl font-black font-mono tracking-tight text-white">
                 {summary.total_emitted_kg.toFixed(2)} <span className="text-xs font-normal text-zinc-400">kg CO₂e</span>
               </h3>
-              <p className="text-[11px] text-zinc-500 font-mono">Computed footprint today</p>
+              <p className="text-[11px] text-zinc-400 font-mono">Computed footprint today</p>
             </div>
           </div>
 
@@ -531,7 +552,7 @@ export default function App() {
               <h3 className="text-3xl font-black font-mono tracking-tight text-emerald-400">
                 {(summary.total_saved_kg + pledgedSavings).toFixed(2)} <span className="text-xs font-normal text-zinc-400">kg CO₂e</span>
               </h3>
-              <p className="text-[11px] text-emerald-400/80 font-mono">Alternative choices & pledges</p>
+              <p className="text-[11px] text-emerald-300 font-mono">Alternative choices & pledges</p>
             </div>
           </div>
 
@@ -545,7 +566,7 @@ export default function App() {
               <h3 className="text-3xl font-black font-mono tracking-tight text-white">
                 {factors.applianceHigh.toFixed(2)} <span className="text-xs font-normal text-zinc-400">kg/hr</span>
               </h3>
-              <p className="text-[11px] text-zinc-500 font-mono">High-draw appliance coefficient</p>
+              <p className="text-[11px] text-zinc-400 font-mono">High-draw appliance coefficient</p>
             </div>
           </div>
 
@@ -572,9 +593,9 @@ export default function App() {
                   <form onSubmit={handleAISubmit} className="space-y-4">
                     <div className="relative">
                       <textarea 
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        placeholder="Enter details: e.g., 'Yesterday morning I commuted 20 km by train instead of my car. Had a vegan burger for lunch. At night I ran the AC for 3 hours.'"
+                        value={draftPrompt}
+                        onChange={(e) => setDraftPrompt(e.target.value)}
+                        placeholder="e.g., Yesterday morning I commuted 20 km by train instead of my car. Had a low-impact meal for lunch..."
                         aria-label="Daily unstructured activity log text input"
                         className="w-full h-36 bg-zinc-950/70 border border-zinc-800 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded-lg p-4 text-zinc-200 placeholder-zinc-600 outline-none transition text-sm font-mono tracking-wide shadow-inner"
                       />
@@ -589,7 +610,7 @@ export default function App() {
                         <button 
                           type="button" 
                           onClick={() => handlePresetSelect("eco")} 
-                          aria-label="Load Eco Day preset"
+                          aria-label="Load Eco Day Preset"
                           className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           🌱 Eco Day
@@ -597,7 +618,7 @@ export default function App() {
                         <button 
                           type="button" 
                           onClick={() => handlePresetSelect("commute")} 
-                          aria-label="Load Commuter preset"
+                          aria-label="Load Commuter Preset"
                           className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           🚗 Commuter
@@ -605,27 +626,27 @@ export default function App() {
                         <button 
                           type="button" 
                           onClick={() => handlePresetSelect("mixed")} 
-                          aria-label="Load Mixed Logs preset"
+                          aria-label="Load Mixed Logs Preset"
                           className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           ⚡ Mixed Logs
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={handleClear} 
-                          aria-label="Clear current log and results"
-                          className="text-rose-400 hover:bg-rose-500/10 border border-transparent text-xs px-3 py-1.5 rounded-md transition font-mono focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
-                        >
-                          Clear
                         </button>
                       </div>
 
                       <div className="flex gap-2 w-full sm:w-auto">
                         <button 
+                          type="button" 
+                          onClick={handleClear} 
+                          aria-label="Clear current log and results"
+                          className="w-full sm:w-auto bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 text-zinc-300 hover:text-rose-400 text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
+                        >
+                          Clear
+                        </button>
+                        <button 
                           type="button"
                           onClick={saveCurrentDayToHistory}
                           aria-label="Save current day to weekly history"
-                          className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="w-full sm:w-auto bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 text-zinc-300 hover:text-white text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           <Clipboard className="w-3.5 h-3.5" /> Save Day
                         </button>
@@ -672,129 +693,63 @@ export default function App() {
                 {activeTab === "breakdown" ? (
                   <div className="space-y-6">
                     {/* Category Progress Fill Breakdown */}
-                    <div>
-                      <h4 className="text-xs font-mono uppercase text-zinc-400 mb-3 tracking-wider">Impact Categories</h4>
-                      <div className="space-y-4">
-                        
-                        {/* Mobility */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-mono text-zinc-400">
-                            <span className="flex items-center gap-1.5">
-                              <Navigation className="w-3.5 h-3.5 text-cyan-400" /> Mobility
-                            </span>
-                            <span>{categoryTotals.mobility.toFixed(2)} kg CO₂e ({Math.round(getCategoryPercent(categoryTotals.mobility)) || 0}%)</span>
-                          </div>
-                          <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-900">
-                            <div className="bg-cyan-400 h-full rounded-full transition-all duration-500" style={{ width: `${getCategoryPercent(categoryTotals.mobility)}%` }}></div>
-                          </div>
-                        </div>
-
-                        {/* Diet */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-mono text-zinc-400">
-                            <span className="flex items-center gap-1.5">
-                              <Leaf className="w-3.5 h-3.5 text-emerald-400" /> Diet
-                            </span>
-                            <span>{categoryTotals.diet.toFixed(2)} kg CO₂e ({Math.round(getCategoryPercent(categoryTotals.diet)) || 0}%)</span>
-                          </div>
-                          <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-900">
-                            <div className="bg-emerald-400 h-full rounded-full transition-all duration-500" style={{ width: `${getCategoryPercent(categoryTotals.diet)}%` }}></div>
-                          </div>
-                        </div>
-
-                        {/* Appliances */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-mono text-zinc-400">
-                            <span className="flex items-center gap-1.5">
-                              <Plug className="w-3.5 h-3.5 text-orange-500" /> Appliances
-                            </span>
-                            <span>{categoryTotals.appliances.toFixed(2)} kg CO₂e ({Math.round(getCategoryPercent(categoryTotals.appliances)) || 0}%)</span>
-                          </div>
-                          <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-900">
-                            <div className="bg-orange-500 h-full rounded-full transition-all duration-500" style={{ width: `${getCategoryPercent(categoryTotals.appliances)}%` }}></div>
-                          </div>
-                        </div>
-
-                        {/* Energy */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-mono text-zinc-400">
-                            <span className="flex items-center gap-1.5">
-                              <Zap className="w-3.5 h-3.5 text-yellow-400" /> Energy
-                            </span>
-                            <span>{categoryTotals.energy.toFixed(2)} kg CO₂e ({Math.round(getCategoryPercent(categoryTotals.energy)) || 0}%)</span>
-                          </div>
-                          <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-900">
-                            <div className="bg-yellow-400 h-full rounded-full transition-all duration-500" style={{ width: `${getCategoryPercent(categoryTotals.energy)}%` }}></div>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
+                    <ImpactCategories categoryTotals={categoryTotals} totalEmitted={summary.total_emitted_kg} />
 
                     {/* Activity stream list table */}
                     <div className="space-y-3 pt-2">
                       <h4 className="text-xs font-mono uppercase text-zinc-400 tracking-wider">Activity Stream</h4>
                       {activities.length === 0 ? (
-                        <div className="border border-dashed border-zinc-800 rounded-lg p-8 text-center text-sm text-zinc-500">
-                          <AlertCircle className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                        <div className="border border-dashed border-zinc-700/80 rounded-lg p-8 text-center text-sm text-zinc-400 bg-zinc-950/20">
+                          <AlertCircle className="w-8 h-8 text-zinc-500 mx-auto mb-2 animate-pulse" />
                           No environmental activities currently parsed. Load a preset or enter text above!
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-80 overflow-y-auto pr-1 custom-scroll">
-                          {activities.map((item, index) => (
-                            <div key={index} className="flex justify-between items-center bg-zinc-950/40 border border-zinc-900/60 rounded-lg p-3.5 text-xs font-mono hover:bg-zinc-950/80 transition duration-150">
-                              <div className="flex items-start gap-3 flex-1 min-w-0 mr-3">
-                                <span className="text-zinc-600 font-semibold shrink-0 mt-0.5">{item.timestamp_marker}</span>
-                                <div className="min-w-0">
-                                  <span className="text-zinc-200 block whitespace-normal font-sans text-sm">{item.description}</span>
-                                  {item._savings_kg > 0 && (
-                                    <span className="text-emerald-400 text-[10px] block mt-0.5 font-sans font-semibold">
-                                      Saved +{item._savings_kg.toFixed(2)} kg CO₂e
-                                    </span>
-                                  )}
+                          {activities.map((item, index) => {
+                            // Style the cards with green tints for saved actions and amber/red tints for emitted carbon
+                            let cardStyles = "bg-zinc-950/40 border-zinc-900/60 text-zinc-200 hover:bg-zinc-950/80";
+                            if (item._savings_kg > 0) {
+                              cardStyles = "bg-emerald-950/15 border-emerald-900/30 text-emerald-100 hover:bg-emerald-950/25 shadow-[0_0_8px_rgba(16,185,129,0.05)]";
+                            } else if (item.carbon_impact_kg >= 4.0) {
+                              cardStyles = "bg-rose-950/15 border-rose-900/30 text-rose-100 hover:bg-rose-950/25 shadow-[0_0_8px_rgba(239,68,68,0.05)]";
+                            } else if (item.carbon_impact_kg > 0) {
+                              cardStyles = "bg-amber-950/10 border-amber-900/20 text-amber-100 hover:bg-amber-950/20";
+                            }
+
+                            return (
+                              <div key={index} className={`flex justify-between items-center border rounded-lg p-3.5 text-xs font-mono transition duration-150 ${cardStyles}`}>
+                                <div className="flex items-start gap-3 flex-1 min-w-0 mr-3">
+                                  <span className="text-zinc-600 font-semibold shrink-0 mt-0.5">{item.timestamp_marker}</span>
+                                  <div className="min-w-0">
+                                    <span className="block whitespace-normal font-sans text-sm">{item.description}</span>
+                                    {item._savings_kg > 0 && (
+                                      <span className="text-emerald-400 text-[10px] block mt-0.5 font-sans font-semibold">
+                                        Saved +{item._savings_kg.toFixed(2)} kg CO₂e
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold shrink-0 
+                                    ${item.category === 'mobility' ? 'bg-cyan-950/40 text-cyan-400 border border-cyan-500/20' : ''} 
+                                    ${item.category === 'diet' ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/20' : ''} 
+                                    ${item.category === 'appliances' ? 'bg-orange-950/40 text-orange-400 border border-orange-500/20' : ''} 
+                                    ${item.category === 'energy' ? 'bg-yellow-950/40 text-yellow-400 border border-yellow-500/20' : ''}`}
+                                  >
+                                    {item.category}
+                                  </span>
+                                  <span className="font-semibold text-sm whitespace-nowrap">{item.carbon_impact_kg.toFixed(2)} kg</span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold shrink-0 
-                                  ${item.category === 'mobility' ? 'bg-cyan-950/40 text-cyan-400 border border-cyan-500/20' : ''} 
-                                  ${item.category === 'diet' ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/20' : ''} 
-                                  ${item.category === 'appliances' ? 'bg-orange-950/40 text-orange-400 border border-orange-500/20' : ''} 
-                                  ${item.category === 'energy' ? 'bg-yellow-950/40 text-yellow-400 border border-yellow-500/20' : ''}`}
-                                >
-                                  {item.category}
-                                </span>
-                                <span className="font-semibold text-zinc-200 text-sm whitespace-nowrap">{item.carbon_impact_kg.toFixed(2)} kg</span>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
                   </div>
                 ) : (
                   /* Developer JSON Export view */
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-zinc-500 font-mono">EcoSync.AI Output Schema</span>
-                      <button 
-                        onClick={handleCopyClipboard} 
-                        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1.5 font-mono"
-                      >
-                        <Clipboard className="w-3.5 h-3.5" />
-                        Copy Minified Payload
-                      </button>
-                    </div>
-                    
-                    <div className="bg-zinc-950/90 border border-zinc-900 rounded-lg p-4 max-h-72 overflow-y-auto custom-scroll">
-                      <pre className="text-[11px] font-mono text-[#34d399] whitespace-pre-wrap break-all leading-relaxed">
-                        {minifiedJSONString}
-                      </pre>
-                    </div>
-                    
-                    <p className="text-[10px] text-zinc-500 font-mono leading-relaxed">
-                      ℹ️ This output conforms strictly to the system's requested schema. It operates in minified format with values re-evaluating in real-time on keypresses or slider changes.
-                    </p>
-                  </div>
+                  <DeveloperConsole minifiedJSONString={minifiedJSONString} handleCopyClipboard={handleCopyClipboard} />
                 )}
               </div>
 
@@ -815,9 +770,12 @@ export default function App() {
                   <span className="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
                     Calculations Recommendation
                   </span>
-                  <p className="text-zinc-300 text-xs leading-relaxed font-sans font-medium">
-                    {contextualNudge}
-                  </p>
+                  <div className="flex items-start gap-2.5 mt-1.5">
+                    <Info className="w-4.5 h-4.5 text-emerald-400/70 shrink-0 mt-0.5" />
+                    <p className="text-zinc-300 text-xs leading-relaxed font-sans font-medium">
+                      {contextualNudge}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -888,186 +846,13 @@ export default function App() {
               </div>
 
               {/* Slider Coefficients Configuration */}
-              <div className={`bg-[#0e1423]/90 border border-zinc-800/50 rounded-xl p-6 shadow-xl transition-all duration-300`}>
-                <div className="flex justify-between items-center border-b border-zinc-800 pb-3 cursor-pointer" onClick={() => setShowConfig(!showConfig)}>
-                  <div className="flex items-center gap-2 text-cyan-400">
-                    <Sliders className="w-4.5 h-4.5" />
-                    <h3 className="font-bold text-base tracking-tight">Carbon Coefficients</h3>
-                  </div>
-                  <span className="text-zinc-500 text-xs font-mono">{showConfig ? 'Collapse ▲' : 'Expand ▼'}</span>
-                </div>
-
-                <div className={`space-y-4 pt-3 ${showConfig ? 'block' : 'hidden md:block'}`}>
-                  <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
-                    Customize the scientific factors (kg CO₂e) to inspect recalculations dynamically.
-                  </p>
-                  
-                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1 custom-scroll">
-                    {/* Car Slider */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>🚗 Automobile / km</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.car.toFixed(2)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0.0" 
-                        max="1.0" 
-                        step="0.01" 
-                        value={factors.car} 
-                        onChange={(e) => handleFactorChange("car", e.target.value)}
-                        aria-label="Automobile carbon factor per kilometer"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                    </div>
-
-                    {/* Scooter Slider */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>🛵 Scooter / km</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.scooter.toFixed(2)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0.0" 
-                        max="0.5" 
-                        step="0.01" 
-                        value={factors.scooter} 
-                        onChange={(e) => handleFactorChange("scooter", e.target.value)}
-                        aria-label="Scooter carbon factor per kilometer"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                    </div>
-
-                    {/* Transit Slider */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>🚇 Metro Transit / km</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.transit.toFixed(3)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0.0" 
-                        max="0.2" 
-                        step="0.001" 
-                        value={factors.transit} 
-                        onChange={(e) => handleFactorChange("transit", e.target.value)}
-                        aria-label="Metro Transit carbon factor per kilometer"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                      <div className="mt-2 bg-cyan-950/20 border border-cyan-900/20 p-2 rounded text-[10px] font-mono text-zinc-400">
-                        <span>Transit Offset Math: </span>
-                        <span className="text-cyan-400">ΔE = C_auto - C_metro = {factors.car.toFixed(2)} - {factors.transit.toFixed(3)} = </span>
-                        <span className="text-emerald-400 font-bold">{(factors.car - factors.transit).toFixed(3)} kg/km</span> avoided
-                      </div>
-                    </div>
-
-                    {/* Diet High Slider */}
-                    <div className="space-y-1 pt-2 border-t border-zinc-800">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>🥩 High-Impact Meal</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.dietHigh.toFixed(2)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="1.0" 
-                        max="15.0" 
-                        step="0.1" 
-                        value={factors.dietHigh} 
-                        onChange={(e) => handleFactorChange("dietHigh", e.target.value)}
-                        aria-label="High impact meat meal carbon factor"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                    </div>
-
-                    {/* Diet Med Slider */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>🍗 Medium-Impact Meal</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.dietMed.toFixed(2)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0.5" 
-                        max="5.0" 
-                        step="0.1" 
-                        value={factors.dietMed} 
-                        onChange={(e) => handleFactorChange("dietMed", e.target.value)}
-                        aria-label="Medium impact meal carbon factor"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                    </div>
-
-                    {/* Diet Low Slider */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>🥗 Low-Impact Meal</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.dietLow.toFixed(2)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0.0" 
-                        max="2.0" 
-                        step="0.05" 
-                        value={factors.dietLow} 
-                        onChange={(e) => handleFactorChange("dietLow", e.target.value)}
-                        aria-label="Low impact plant-based meal carbon factor"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                      <div className="mt-2 bg-emerald-950/20 border border-emerald-800/20 p-2 rounded text-[10px] font-mono text-zinc-400">
-                        <span>Dietary Offset Math: </span>
-                        <span className="text-emerald-400">ΔE = C_high - C_low = {factors.dietHigh.toFixed(2)} - {factors.dietLow.toFixed(2)} = </span>
-                        <span className="text-emerald-400 font-bold">{(factors.dietHigh - factors.dietLow).toFixed(2)} kg/meal</span> avoided
-                      </div>
-                    </div>
-
-                    {/* Appliance High Slider */}
-                    <div className="space-y-1 pt-2 border-t border-zinc-800">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>❄️ High-Draw Appliance / hr</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.applianceHigh.toFixed(2)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0.0" 
-                        max="3.0" 
-                        step="0.05" 
-                        value={factors.applianceHigh} 
-                        onChange={(e) => handleFactorChange("applianceHigh", e.target.value)}
-                        aria-label="High draw appliance carbon factor per hour"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                    </div>
-
-                    {/* Energy Grid Slider */}
-                    <div className="space-y-1 pt-2 border-t border-zinc-800">
-                      <div className="flex justify-between text-xs font-mono text-zinc-400">
-                        <span>⚡ Grid Electricity / kWh</span>
-                        <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1.5 py-0.5 rounded">{factors.energyGrid.toFixed(2)}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0.0" 
-                        max="2.0" 
-                        step="0.05" 
-                        value={factors.energyGrid} 
-                        onChange={(e) => handleFactorChange("energyGrid", e.target.value)}
-                        aria-label="Grid electricity carbon factor per kilowatt hour"
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={handleResetCoefficients} 
-                    aria-label="Reset scientific constants to default factors"
-                    className="w-full bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800/80 text-zinc-400 hover:text-zinc-200 text-xs py-2 rounded-lg transition flex items-center justify-center gap-1.5 font-mono focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Reset Scientific Constants
-                  </button>
-                </div>
-              </div>
+              <CarbonCoefficients 
+                factors={factors}
+                handleFactorChange={handleFactorChange}
+                handleResetCoefficients={handleResetCoefficients}
+                showConfig={showConfig}
+                setShowConfig={setShowConfig}
+              />
 
             </div>
 
