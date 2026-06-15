@@ -60,7 +60,7 @@ export default function App() {
     total_saved_kg: 0.0
   });
   const [contextualNudge, setContextualNudge] = useState(
-    "Please share details about your transportation, meals, or appliance usage today to calculate your environmental footprint."
+    "Please feed telemetry data regarding your transit footprints, meal tracking, or high-draw hardware configurations above to compute active carbon impacts."
   );
 
   // New API Parser configuration states
@@ -116,7 +116,7 @@ export default function App() {
   // --- Dynamic Nudge Generator ---
   const generateNudge = (activitiesList, totalEmitted, totalSaved) => {
     if (activitiesList.length === 0) {
-      return "Please share details about your transportation, meals, or appliance usage today to calculate your environmental footprint.";
+      return "Please feed telemetry data regarding your transit footprints, meal tracking, or high-draw hardware configurations above to compute active carbon impacts.";
     }
 
     const metroActivity = activitiesList.find(a => a.category === 'mobility' && a._savings_kg > 0 && a.description.toLowerCase().includes('metro'));
@@ -192,7 +192,7 @@ export default function App() {
     if (!logText.trim()) {
       setActivities([]);
       setSummary({ total_emitted_kg: 0.0, total_saved_kg: 0.0 });
-      setContextualNudge("Please share details about your transportation, meals, or appliance usage today to calculate your environmental footprint.");
+      setContextualNudge("Please feed telemetry data regarding your transit footprints, meal tracking, or high-draw hardware configurations above to compute active carbon impacts.");
       setApiError("");
       setCachedPayload(null);
       setCachedText("");
@@ -344,7 +344,7 @@ export default function App() {
     setPrompt("");
     setActivities([]);
     setSummary({ total_emitted_kg: 0.0, total_saved_kg: 0.0 });
-    setContextualNudge("Please share details about your transportation, meals, or appliance usage today to calculate your environmental footprint.");
+    setContextualNudge("Please feed telemetry data regarding your transit footprints, meal tracking, or high-draw hardware configurations above to compute active carbon impacts.");
     setApiError("");
     setCachedPayload(null);
     setCachedText("");
@@ -604,41 +604,36 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-4 border-t border-zinc-900 mt-4">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-zinc-500">Presets:</span>
-                        <button 
-                          type="button" 
-                          onClick={() => handlePresetSelect("eco")} 
-                          aria-label="Load Eco Day Preset"
-                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none cursor-pointer"
-                        >
-                          🌱 Eco Day
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => handlePresetSelect("commute")} 
-                          aria-label="Load Commuter Preset"
-                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none cursor-pointer"
-                        >
-                          🚗 Commuter
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => handlePresetSelect("mixed")} 
-                          aria-label="Load Mixed Logs Preset"
-                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none cursor-pointer"
-                        >
-                          ⚡ Mixed Logs
-                        </button>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-zinc-900 mt-4 w-full">
+                      {/* Left Section: Contextual Presets */}
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Presets:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: '🌱 Eco Day', style: 'hover:border-emerald-900 hover:text-emerald-400', key: 'eco' },
+                            { label: '🚗 Commuter', style: 'hover:border-blue-900 hover:text-blue-400', key: 'commute' },
+                            { label: '⚡ Mixed Logs', style: 'hover:border-amber-900 hover:text-amber-400', key: 'mixed' }
+                          ].map((preset) => (
+                            <button 
+                              key={preset.label}
+                              type="button"
+                              onClick={() => handlePresetSelect(preset.key)}
+                              aria-label={`Load ${preset.label} Preset`}
+                              className={`px-3 py-1 text-xs font-medium text-zinc-400 bg-zinc-900/40 border border-zinc-800/80 rounded-md transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none ${preset.style}`}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-3 w-full sm:w-auto">
+                      {/* Right Section: Core Utility Actions */}
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                         <button 
                           type="button" 
                           onClick={handleClear} 
                           aria-label="Clear current log and results"
-                          className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-rose-400 border border-zinc-800 hover:border-rose-950 rounded-lg bg-zinc-950 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
+                          className="px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:text-rose-400 border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
                         >
                           Clear
                         </button>
@@ -646,7 +641,7 @@ export default function App() {
                           type="button"
                           onClick={saveCurrentDayToHistory}
                           aria-label="Save current day to weekly history"
-                          className="px-3 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-800 hover:bg-zinc-900 rounded-lg bg-zinc-950 transition-all flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="px-3 py-1.5 text-xs font-semibold text-zinc-300 border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           💾 Save Day
                         </button>
@@ -654,12 +649,12 @@ export default function App() {
                           type="submit" 
                           disabled={isProcessing}
                           aria-label="Parse log and compute footprint"
-                          className="px-5 py-1.5 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-lg shadow-emerald-950/20 transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                          className="px-4 py-1.5 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-md shadow-emerald-500/10 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           {isProcessing ? (
                             <span className="animate-spin inline-block w-4 h-4 border-2 border-black border-t-transparent rounded-full"></span>
                           ) : (
-                            <>PARSE LOG <span className="text-[10px]">↗</span></>
+                            <>PARSE LOG <span className="text-[10px] opacity-80">↗</span></>
                           )}
                         </button>
                       </div>
@@ -698,13 +693,13 @@ export default function App() {
                     <div className="space-y-3 pt-2">
                       <h4 className="text-xs font-mono uppercase text-zinc-400 tracking-wider">Activity Stream</h4>
                       {activities.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-950/50 text-center">
-                          <div className="p-3 bg-zinc-900 rounded-full text-zinc-600 mb-3 animate-pulse">
-                            🌱
+                        <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed border-zinc-800/60 rounded-xl bg-zinc-950/30 text-center w-full">
+                          <div className="w-9 h-9 rounded-full bg-zinc-900/50 flex items-center justify-center text-zinc-500 text-sm mb-2.5 animate-pulse">
+                            📡
                           </div>
-                          <p className="text-sm font-medium text-zinc-400">Waiting for Carbon Logs</p>
-                          <p className="text-xs text-zinc-500 mt-1 max-w-[250px]">
-                            Load a preset above or type your daily routine to stream live environmental impact data.
+                          <p className="text-xs font-semibold text-zinc-400">Activity Timeline Dormant</p>
+                          <p className="text-[11px] text-zinc-500 max-w-[240px] mt-1 leading-relaxed">
+                            Select an operational preset or paste custom environmental routines to initiate real-time analysis logs.
                           </p>
                         </div>
                       ) : (
@@ -769,14 +764,11 @@ export default function App() {
                   <h3 className="font-bold text-lg tracking-tight">Contextual Nudge</h3>
                 </div>
                 
-                <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-4 space-y-3 relative overflow-hidden">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400 to-cyan-500"></div>
-                  <span className="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
-                    Calculations Recommendation
-                  </span>
-                  <div className="flex items-start gap-2.5 mt-1.5">
-                    <Info className="w-4.5 h-4.5 text-emerald-400/70 shrink-0 mt-0.5" />
-                    <p className="text-zinc-300 text-xs leading-relaxed font-sans font-medium">
+                <div className="p-4 bg-gradient-to-r from-zinc-950 to-zinc-900/40 border border-zinc-900 rounded-xl flex gap-3.5 items-start shadow-sm">
+                  <div className="text-emerald-400 text-sm mt-0.5 bg-emerald-950/40 p-1.5 rounded-md border border-emerald-900/30">💡</div>
+                  <div>
+                    <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">System Optimization Nudge</h5>
+                    <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
                       {contextualNudge}
                     </p>
                   </div>
