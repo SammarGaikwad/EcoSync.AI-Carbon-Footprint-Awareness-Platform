@@ -108,8 +108,27 @@ app.post('/api/parse', async (req, res) => {
   try {
     const { text } = req.body;
 
-    if (!text || !text.trim()) {
+    if (!text) {
       return res.status(400).json({ error: "Log text parameter is required." });
+    }
+
+    if (typeof text !== 'string') {
+      return res.status(400).json({ error: "Invalid text parameter. Must be a string." });
+    }
+
+    if (text.trim() === '') {
+      return res.status(400).json({ error: "Log text parameter cannot be empty." });
+    }
+
+    // Limit maximum input size to prevent abuse (Security / DoS prevention)
+    if (text.length > 2000) {
+      return res.status(400).json({ error: "Input log text exceeds maximum allowed length of 2000 characters." });
+    }
+
+    // Sanitize input: Strip HTML tags to prevent cross-site scripting/injection attempts
+    const sanitizedText = text.replace(/<[^>]*>/g, '').trim();
+    if (!sanitizedText) {
+      return res.status(400).json({ error: "Invalid input. Log text cannot contain only HTML elements." });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -119,7 +138,7 @@ app.post('/api/parse', async (req, res) => {
       });
     }
 
-    const prompt = `${GEMINI_SYSTEM_PROMPT}\n"${text}"`;
+    const prompt = `${GEMINI_SYSTEM_PROMPT}\n"${sanitizedText}"`;
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(geminiUrl, {
@@ -145,7 +164,16 @@ app.post('/api/parse', async (req, res) => {
     }
 
     const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    // Check if the response was blocked by safety filters
+    const candidate = data.candidates?.[0];
+    if (candidate?.finishReason === 'SAFETY') {
+      return res.status(400).json({ 
+        error: "The provided input log was blocked by Gemini safety filters. Please write a constructive lifestyle log." 
+      });
+    }
+
+    const rawText = candidate?.content?.parts?.[0]?.text;
 
     if (!rawText) {
       return res.status(500).json({ error: "No response text candidate returned from Gemini AI model." });

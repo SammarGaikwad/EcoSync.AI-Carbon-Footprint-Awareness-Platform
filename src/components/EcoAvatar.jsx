@@ -242,7 +242,12 @@ export default function EcoAvatar({ netImpact, avatarState }) {
 
       {/* 2. Interactive SVG Visualizer */}
       <div className="relative w-44 h-44 flex items-center justify-center select-none z-10 transition duration-300 transform group-hover:scale-105">
-        <svg viewBox="0 0 200 200" className="w-full h-full">
+        <svg 
+          viewBox="0 0 200 200" 
+          className="w-full h-full"
+          role="img"
+          aria-label={`Eco Avatar in ${level} stage with ${health}% health - ${desc}`}
+        >
           <defs>
             {/* Core Glow Filters */}
             <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">

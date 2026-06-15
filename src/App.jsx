@@ -7,6 +7,7 @@ import {
   TrendingUp, CheckSquare, Square, BarChart3, Activity
 } from 'lucide-react';
 import { parseLocalLog, parseWithGeminiAI } from './utils/parserEngine';
+import { calculateDailyImpact } from './utils/calculationCore';
 import EcoAvatar from './components/EcoAvatar';
 
 // Scientific default coefficients (kg CO2e)
@@ -64,6 +65,11 @@ export default function App() {
   });
 
   const [apiError, setApiError] = useState("");
+
+  // Cache state to avoid duplicate API requests during slider changes
+  const [cachedPayload, setCachedPayload] = useState(null);
+  const [cachedText, setCachedText] = useState("");
+  const [cachedMode, setCachedMode] = useState("");
 
   // Historical log tracking state
   const [history, setHistory] = useState(() => {
@@ -171,6 +177,9 @@ export default function App() {
       setSummary({ total_emitted_kg: 0.0, total_saved_kg: 0.0 });
       setContextualNudge("Please share details about your transportation, meals, or appliance usage today to calculate your environmental footprint.");
       setApiError("");
+      setCachedPayload(null);
+      setCachedText("");
+      setCachedMode("");
       return;
     }
 
@@ -186,15 +195,77 @@ export default function App() {
       highDrawAppliance: activeFactors.applianceHigh,
     };
 
+    // Check cache to avoid redundant parse calls during coefficient updates
+    if (logText === cachedText && currentMode === cachedMode && cachedPayload !== null) {
+      const evaluation = calculateDailyImpact(cachedPayload, coefficients);
+      const isAI = currentMode === "gemini";
+      const reconstructedActivities = [];
+
+      if (cachedPayload.mobility.mode !== 'none' && cachedPayload.mobility.distanceKm > 0) {
+        let savings = 0;
+        if (coefficients[cachedPayload.mobility.mode] < coefficients.automobile) {
+          savings = (cachedPayload.mobility.distanceKm * coefficients.automobile) - evaluation.mobilityEmitted;
+        }
+        reconstructedActivities.push({
+          timestamp_marker: "Current",
+          description: `Traveled ${cachedPayload.mobility.distanceKm} km by ${cachedPayload.mobility.vehicleName || (cachedPayload.mobility.mode === 'metroTransit' ? 'metro transit' : cachedPayload.mobility.mode)}${isAI ? ' (AI Parsed)' : ''}`,
+          category: 'mobility',
+          carbon_impact_kg: evaluation.mobilityEmitted,
+          _savings_kg: savings
+        });
+      }
+
+      if (cachedPayload.diet.mealImpact !== 'none') {
+        let savings = 0;
+        if (cachedPayload.diet.mealImpact === 'low-impact') {
+          savings = coefficients.highImpactMeal - coefficients.lowImpactMeal;
+        }
+        const label = cachedPayload.diet.dietDesc || (cachedPayload.diet.mealImpact === 'low-impact' ? 'Low-Impact Eco Meal' : cachedPayload.diet.mealImpact === 'medium-impact' ? 'Medium-Impact Meal' : 'High-Impact Meat Meal');
+        reconstructedActivities.push({
+          timestamp_marker: "Current",
+          description: `${label}${isAI ? ' (AI Parsed)' : ''}`,
+          category: 'diet',
+          carbon_impact_kg: evaluation.dietEmitted,
+          _savings_kg: savings
+        });
+      }
+
+      if (cachedPayload.appliances.durationHours > 0) {
+        const label = cachedPayload.appliances.applianceName || "high-draw appliance";
+        reconstructedActivities.push({
+          timestamp_marker: "Current",
+          description: `Ran ${label} for ${cachedPayload.appliances.durationHours} hours${isAI ? ' (AI Parsed)' : ''}`,
+          category: 'appliances',
+          carbon_impact_kg: evaluation.applianceEmitted,
+          _savings_kg: 0
+        });
+      }
+
+      setActivities(reconstructedActivities);
+      setSummary({
+        total_emitted_kg: parseFloat(evaluation.totalEmitted.toFixed(2)),
+        total_saved_kg: parseFloat(evaluation.totalSaved.toFixed(2))
+      });
+      setContextualNudge(generateNudge(reconstructedActivities, evaluation.totalEmitted, evaluation.totalSaved));
+      return;
+    }
+
+    // Fresh calculation
     if (currentMode === "gemini") {
       setIsProcessing(true);
       try {
         const result = await parseWithGeminiAI(logText, coefficients);
+        setCachedPayload(result.parsedPayload);
+        setCachedText(logText);
+        setCachedMode("gemini");
         updateStateAfterParsing(result);
       } catch (err) {
         console.error("Gemini Parsing Error, falling back to local regex: ", err);
         setApiError(`Gemini AI failed: ${err.message}. Reverting automatically to offline Local Parser...`);
         const fallbackResult = parseLocalLog(logText, coefficients);
+        setCachedPayload(fallbackResult.parsedPayload);
+        setCachedText(logText);
+        setCachedMode("local");
         updateStateAfterParsing(fallbackResult);
       } finally {
         setIsProcessing(false);
@@ -202,6 +273,9 @@ export default function App() {
     } else {
       // Local offline regex parsing
       const result = parseLocalLog(logText, coefficients);
+      setCachedPayload(result.parsedPayload);
+      setCachedText(logText);
+      setCachedMode("local");
       updateStateAfterParsing(result);
     }
   };
@@ -251,6 +325,9 @@ export default function App() {
     setSummary({ total_emitted_kg: 0.0, total_saved_kg: 0.0 });
     setContextualNudge("Please share details about your transportation, meals, or appliance usage today to calculate your environmental footprint.");
     setApiError("");
+    setCachedPayload(null);
+    setCachedText("");
+    setCachedMode("");
   };
 
   const togglePledge = (id) => {
@@ -373,13 +450,15 @@ export default function App() {
     };
   };
 
-  const deltas = calculateDeltas();
-
   // Compute category details for visual progress bars
   const categoryTotals = { mobility: 0, diet: 0, appliances: 0, energy: 0 };
   activities.forEach(act => {
-    categoryTotals[act.category] += act.carbon_impact_kg;
+    if (categoryTotals[act.category] !== undefined) {
+      categoryTotals[act.category] += act.carbon_impact_kg;
+    }
   });
+
+  const deltas = calculateDeltas();
 
   const getCategoryPercent = (catVal) => {
     if (summary.total_emitted_kg === 0) return 0;
@@ -400,13 +479,15 @@ export default function App() {
         <div className="flex items-center gap-4 sm:gap-6 text-sm text-zinc-400 flex-wrap justify-center">
           <button 
             onClick={() => setCurrentView("dashboard")} 
-            className={`font-medium transition pb-1 cursor-pointer bg-transparent border-none outline-none ${currentView === 'dashboard' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-zinc-200'}`}
+            aria-label="View Dashboard"
+            className={`font-medium transition pb-1 cursor-pointer bg-transparent border-none outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070a13] rounded ${currentView === 'dashboard' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
             Dashboard
           </button>
           <button 
             onClick={() => setCurrentView("analytics")} 
-            className={`font-medium transition pb-1 cursor-pointer bg-transparent border-none outline-none ${currentView === 'analytics' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-zinc-200'}`}
+            aria-label="View Analytics"
+            className={`font-medium transition pb-1 cursor-pointer bg-transparent border-none outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070a13] rounded ${currentView === 'analytics' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
             Analytics
           </button>
@@ -494,7 +575,8 @@ export default function App() {
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="Enter details: e.g., 'Yesterday morning I commuted 20 km by train instead of my car. Had a vegan burger for lunch. At night I ran the AC for 3 hours.'"
-                        className="w-full h-36 bg-zinc-950/70 border border-zinc-800 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 rounded-lg p-4 text-zinc-200 placeholder-zinc-600 outline-none transition text-sm font-mono tracking-wide shadow-inner"
+                        aria-label="Daily unstructured activity log text input"
+                        className="w-full h-36 bg-zinc-950/70 border border-zinc-800 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded-lg p-4 text-zinc-200 placeholder-zinc-600 outline-none transition text-sm font-mono tracking-wide shadow-inner"
                       />
                       <div className="absolute bottom-3 right-3 text-[10px] text-zinc-500 font-mono">
                         NATURAL LANGUAGE TEXT
@@ -504,16 +586,36 @@ export default function App() {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-mono text-zinc-500">Presets:</span>
-                        <button type="button" onClick={() => handlePresetSelect("eco")} className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono">
+                        <button 
+                          type="button" 
+                          onClick={() => handlePresetSelect("eco")} 
+                          aria-label="Load Eco Day preset"
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                        >
                           🌱 Eco Day
                         </button>
-                        <button type="button" onClick={() => handlePresetSelect("commute")} className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono">
+                        <button 
+                          type="button" 
+                          onClick={() => handlePresetSelect("commute")} 
+                          aria-label="Load Commuter preset"
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                        >
                           🚗 Commuter
                         </button>
-                        <button type="button" onClick={() => handlePresetSelect("mixed")} className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono">
+                        <button 
+                          type="button" 
+                          onClick={() => handlePresetSelect("mixed")} 
+                          aria-label="Load Mixed Logs preset"
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-md transition flex items-center gap-1 font-mono focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                        >
                           ⚡ Mixed Logs
                         </button>
-                        <button type="button" onClick={handleClear} className="text-rose-400 hover:bg-rose-500/10 border border-transparent text-xs px-3 py-1.5 rounded-md transition font-mono">
+                        <button 
+                          type="button" 
+                          onClick={handleClear} 
+                          aria-label="Clear current log and results"
+                          className="text-rose-400 hover:bg-rose-500/10 border border-transparent text-xs px-3 py-1.5 rounded-md transition font-mono focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
+                        >
                           Clear
                         </button>
                       </div>
@@ -522,14 +624,16 @@ export default function App() {
                         <button 
                           type="button"
                           onClick={saveCurrentDayToHistory}
-                          className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 font-mono cursor-pointer"
+                          aria-label="Save current day to weekly history"
+                          className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           <Clipboard className="w-3.5 h-3.5" /> Save Day
                         </button>
                         <button 
                           type="submit" 
                           disabled={isProcessing}
-                          className="w-full sm:w-auto bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-black font-semibold px-6 py-2.5 rounded-lg text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-500/10"
+                          aria-label="Parse log and compute footprint"
+                          className="w-full sm:w-auto bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-black font-semibold px-6 py-2.5 rounded-lg text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-500/10 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
                         >
                           {isProcessing ? (
                             <span className="animate-spin inline-block w-4 h-4 border-2 border-black border-t-transparent rounded-full"></span>
@@ -734,7 +838,8 @@ export default function App() {
                           setParserMode("local");
                           executeCalculation(prompt, factors, "local");
                         }}
-                        className={`py-2 px-3 rounded-lg font-mono text-[10px] uppercase font-bold border transition flex items-center justify-center gap-1.5 ${
+                        aria-label="Set parsing engine to Offline Regex"
+                        className={`py-2 px-3 rounded-lg font-mono text-[10px] uppercase font-bold border transition flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none ${
                           parserMode === "local"
                             ? "bg-emerald-950/40 text-emerald-400 border-emerald-400/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
                             : "bg-zinc-950/40 text-zinc-500 border-zinc-900 hover:text-zinc-300 hover:border-zinc-800"
@@ -748,7 +853,8 @@ export default function App() {
                           setParserMode("gemini");
                           executeCalculation(prompt, factors, "gemini");
                         }}
-                        className={`py-2 px-3 rounded-lg font-mono text-[10px] uppercase font-bold border transition flex items-center justify-center gap-1.5 ${
+                        aria-label="Set parsing engine to Gemini AI"
+                        className={`py-2 px-3 rounded-lg font-mono text-[10px] uppercase font-bold border transition flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none ${
                           parserMode === "gemini"
                             ? "bg-cyan-950/40 text-cyan-400 border-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
                             : "bg-zinc-950/40 text-zinc-500 border-zinc-900 hover:text-zinc-300 hover:border-zinc-800"
@@ -810,7 +916,8 @@ export default function App() {
                         step="0.01" 
                         value={factors.car} 
                         onChange={(e) => handleFactorChange("car", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="Automobile carbon factor per kilometer"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
                     </div>
 
@@ -827,7 +934,8 @@ export default function App() {
                         step="0.01" 
                         value={factors.scooter} 
                         onChange={(e) => handleFactorChange("scooter", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="Scooter carbon factor per kilometer"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
                     </div>
 
@@ -844,8 +952,14 @@ export default function App() {
                         step="0.001" 
                         value={factors.transit} 
                         onChange={(e) => handleFactorChange("transit", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="Metro Transit carbon factor per kilometer"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
+                      <div className="mt-2 bg-cyan-950/20 border border-cyan-900/20 p-2 rounded text-[10px] font-mono text-zinc-400">
+                        <span>Transit Offset Math: </span>
+                        <span className="text-cyan-400">ΔE = C_auto - C_metro = {factors.car.toFixed(2)} - {factors.transit.toFixed(3)} = </span>
+                        <span className="text-emerald-400 font-bold">{(factors.car - factors.transit).toFixed(3)} kg/km</span> avoided
+                      </div>
                     </div>
 
                     {/* Diet High Slider */}
@@ -861,7 +975,8 @@ export default function App() {
                         step="0.1" 
                         value={factors.dietHigh} 
                         onChange={(e) => handleFactorChange("dietHigh", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="High impact meat meal carbon factor"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
                     </div>
 
@@ -878,7 +993,8 @@ export default function App() {
                         step="0.1" 
                         value={factors.dietMed} 
                         onChange={(e) => handleFactorChange("dietMed", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="Medium impact meal carbon factor"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
                     </div>
 
@@ -895,8 +1011,14 @@ export default function App() {
                         step="0.05" 
                         value={factors.dietLow} 
                         onChange={(e) => handleFactorChange("dietLow", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="Low impact plant-based meal carbon factor"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
+                      <div className="mt-2 bg-emerald-950/20 border border-emerald-800/20 p-2 rounded text-[10px] font-mono text-zinc-400">
+                        <span>Dietary Offset Math: </span>
+                        <span className="text-emerald-400">ΔE = C_high - C_low = {factors.dietHigh.toFixed(2)} - {factors.dietLow.toFixed(2)} = </span>
+                        <span className="text-emerald-400 font-bold">{(factors.dietHigh - factors.dietLow).toFixed(2)} kg/meal</span> avoided
+                      </div>
                     </div>
 
                     {/* Appliance High Slider */}
@@ -912,7 +1034,8 @@ export default function App() {
                         step="0.05" 
                         value={factors.applianceHigh} 
                         onChange={(e) => handleFactorChange("applianceHigh", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="High draw appliance carbon factor per hour"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
                     </div>
 
@@ -929,14 +1052,16 @@ export default function App() {
                         step="0.05" 
                         value={factors.energyGrid} 
                         onChange={(e) => handleFactorChange("energyGrid", e.target.value)}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                        aria-label="Grid electricity carbon factor per kilowatt hour"
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       />
                     </div>
                   </div>
 
                   <button 
                     onClick={handleResetCoefficients} 
-                    className="w-full bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800/80 text-zinc-400 hover:text-zinc-200 text-xs py-2 rounded-lg transition flex items-center justify-center gap-1.5 font-mono"
+                    aria-label="Reset scientific constants to default factors"
+                    className="w-full bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800/80 text-zinc-400 hover:text-zinc-200 text-xs py-2 rounded-lg transition flex items-center justify-center gap-1.5 font-mono focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     Reset Scientific Constants

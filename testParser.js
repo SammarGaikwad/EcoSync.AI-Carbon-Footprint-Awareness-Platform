@@ -53,4 +53,24 @@ assert.strictEqual(mixedResult.appliances.emitted, 3 * 0.80);
 assert.strictEqual(mixedResult.totalEmitted, (10 * 0.02) + 6.00 + (3 * 0.80));
 console.log("✅ Passed Test Case 6: Mixed inputs evaluated successfully!");
 
+// Test Case 7: Cache parsedPayload structure validation
+const cacheInput = "Traveled 12.5 km by scooter. Had chicken wrap. Ran geyser for 2 hours.";
+const cacheResult = parseLocalLog(cacheInput, coefficients);
+assert.ok(cacheResult.parsedPayload);
+assert.strictEqual(cacheResult.parsedPayload.mobility.distanceKm, 12.5);
+assert.strictEqual(cacheResult.parsedPayload.mobility.mode, 'scooter');
+assert.strictEqual(cacheResult.parsedPayload.mobility.vehicleName, 'scooter');
+assert.strictEqual(cacheResult.parsedPayload.diet.mealImpact, 'medium-impact');
+assert.strictEqual(cacheResult.parsedPayload.diet.dietDesc, 'Medium-Impact Meal');
+assert.strictEqual(cacheResult.parsedPayload.appliances.durationHours, 2.0);
+assert.strictEqual(cacheResult.parsedPayload.appliances.applianceName, 'Water Geyser');
+console.log("✅ Passed Test Case 7: Cached payload structure matches client contract");
+
+// Test Case 8: Text containing HTML tags
+const dirtyInput = "Had a vegan salad <b>lunch</b> and traveled 5 km by metro";
+const dirtyResult = parseLocalLog(dirtyInput, coefficients);
+assert.strictEqual(dirtyResult.diet.emitted, 0.40);
+assert.strictEqual(dirtyResult.mobility.emitted, 5 * 0.02);
+console.log("✅ Passed Test Case 8: Parser processes logs containing HTML tags gracefully");
+
 console.log("\n🚀 All parser unit tests passed successfully!");

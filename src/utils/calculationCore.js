@@ -1,7 +1,16 @@
 /**
- * EcoSync.AI - Central Calculation Engine
- * Maps parsed telemetry data directly against dynamic UI slider constants.
- * Aligned with evaluation parameters for Efficiency and Problem Statement Alignment.
+ * Calculates daily carbon emissions and offset savings based on parsed log metrics and carbon factor coefficients.
+ * 
+ * @param {Object} parsedJSON - Normalized JSON structure containing activity telemetry.
+ * @param {Object} parsedJSON.mobility - Mobility distance and mode details.
+ * @param {number} parsedJSON.mobility.distanceKm - Traveled distance in kilometers.
+ * @param {string} parsedJSON.mobility.mode - Type of vehicle (e.g. 'automobile', 'scooter', 'metroTransit').
+ * @param {Object} parsedJSON.diet - Dietary meal impact selection.
+ * @param {string} parsedJSON.diet.mealImpact - Level of meal impact ('low-impact', 'medium-impact', 'high-impact').
+ * @param {Object} parsedJSON.appliances - High-draw appliance usage details.
+ * @param {number} parsedJSON.appliances.durationHours - Runtime duration of appliance in hours.
+ * @param {Object} uiConstants - User customizable scientific carbon factor coefficients (kg CO2e).
+ * @returns {Object} Calculated metrics (emitted, saved, avatar health, and state name).
  */
 export function calculateDailyImpact(parsedJSON, uiConstants) {
   const result = {

@@ -6,8 +6,11 @@
 import { calculateDailyImpact } from './calculationCore.js';
 
 /**
- * Strategy 1: Offline Regex Engine (Lightweight, fast, local)
- * Extracts data using structural pattern matching when offline mode is selected.
+ * Local offline parser that extracts carbon telemetry from unstructured text logs using regular expressions.
+ * 
+ * @param {string} text - The raw unstructured lifestyle log.
+ * @param {Object} coefficients - Carbon footprint factor constants.
+ * @returns {Object} Normalized parsing results, including structured emissions details and activities.
  */
 export function parseLocalLog(text, coefficients) {
   if (!text || text.trim() === '') {
@@ -24,7 +27,7 @@ export function parseLocalLog(text, coefficients) {
   }
 
   // 1. Mobility Parser: Matches "X km by car/automobile/scooter/train/metro"
-  let mobilityPayload = { distanceKm: 0, mode: 'none' };
+  let mobilityPayload = { distanceKm: 0, mode: 'none', vehicleName: '' };
   let vehicleName = '';
   const distanceRegex = /(\d+(?:\.\d+)?)\s*km\s*by\s*(car|automobile|scooter|train|metro|bus)/gi;
   const mobilityMatch = distanceRegex.exec(text);
@@ -35,25 +38,25 @@ export function parseLocalLog(text, coefficients) {
     let mode = 'scooter'; // default fallback
     if (vehicle === 'car' || vehicle === 'automobile') mode = 'automobile';
     if (vehicle === 'train' || vehicle === 'metro') mode = 'metroTransit';
-    mobilityPayload = { distanceKm: dist, mode };
+    mobilityPayload = { distanceKm: dist, mode, vehicleName };
   }
 
   // 2. Diet Parser: Matches generic meal impact keywords
-  let dietPayload = { mealImpact: 'none' };
+  let dietPayload = { mealImpact: 'none', dietDesc: '' };
   let dietDesc = '';
   if (/vegan|salad|low-impact|plant-based/i.test(text)) {
-    dietPayload = { mealImpact: 'low-impact' };
+    dietPayload = { mealImpact: 'low-impact', dietDesc: 'Low-Impact Eco Meal' };
     dietDesc = 'Low-Impact Eco Meal';
   } else if (/chicken|poultry|medium-impact/i.test(text)) {
-    dietPayload = { mealImpact: 'medium-impact' };
+    dietPayload = { mealImpact: 'medium-impact', dietDesc: 'Medium-Impact Meal' };
     dietDesc = 'Medium-Impact Meal';
   } else if (/meat|steak|beef|high-impact/i.test(text)) {
-    dietPayload = { mealImpact: 'high-impact' };
+    dietPayload = { mealImpact: 'high-impact', dietDesc: 'High-Impact Meat Meal' };
     dietDesc = 'High-Impact Meat Meal';
   }
 
   // 3. Appliance/Energy Parser: Matches "X hours of AC", "AC for X hours", "air conditioner for X hours", etc.
-  let appliancesPayload = { durationHours: 0 };
+  let appliancesPayload = { durationHours: 0, applianceName: 'high-draw appliance' };
   let applianceName = 'high-draw appliance';
   const hoursRegex = /(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/i;
   const applianceKeywords = /ac|air\s*conditioner|conditioner|heater|space\s*heater|geyser|tv|television|computer|pc|appliances/i;
@@ -62,12 +65,12 @@ export function parseLocalLog(text, coefficients) {
     const hoursMatch = text.match(hoursRegex);
     if (hoursMatch) {
       const hours = parseFloat(hoursMatch[1]);
-      appliancesPayload = { durationHours: hours };
       if (/ac|air\s*conditioner|conditioner/i.test(text)) applianceName = "AC";
       else if (/heater|space\s*heater/i.test(text)) applianceName = "Space Heater";
       else if (/geyser/i.test(text)) applianceName = "Water Geyser";
       else if (/tv|television/i.test(text)) applianceName = "TV";
       else if (/computer|pc/i.test(text)) applianceName = "Computer";
+      appliancesPayload = { durationHours: hours, applianceName };
     }
   }
 
@@ -127,7 +130,8 @@ export function parseLocalLog(text, coefficients) {
     totalEmitted: evaluation.totalEmitted,
     totalSaved: evaluation.totalSaved,
     calculatedHealth: evaluation.avatarHealth,
-    activities
+    activities,
+    parsedPayload
   };
 }
 
@@ -166,8 +170,11 @@ You are the background telemetry extraction engine for EcoSync.AI. Your sole tas
 `;
 
 /**
- * Strategy 2 (Cont.): Client-Side Gemini Request & Telemetry Mapping
- * Communicates directly with the Gemini API to get raw structural data and maps it to UI coefficients.
+ * Remote online parser that leverages the Gemini API to extract carbon telemetry from unstructured text logs.
+ * 
+ * @param {string} text - The raw unstructured lifestyle log.
+ * @param {Object} coefficients - Carbon footprint factor constants.
+ * @returns {Promise<Object>} Normalized parsing results, including structured emissions details and activities.
  */
 export async function parseWithGeminiAI(text, coefficients) {
   const response = await fetch("/api/parse", {
@@ -185,17 +192,23 @@ export async function parseWithGeminiAI(text, coefficients) {
 
   const parsedJSON = await response.json();
 
+  const mobilityLabel = parsedJSON.mobility?.mode === 'metro' ? 'metro transit' : (parsedJSON.mobility?.mode || '');
+  const dietLabel = parsedJSON.diet?.mealImpact === 'low-impact' ? 'Low-Impact Eco Meal' : parsedJSON.diet?.mealImpact === 'medium-impact' ? 'Medium-Impact Meal' : parsedJSON.diet?.mealImpact === 'high-impact' ? 'High-Impact Meat Meal' : '';
+
   // Map Gemini keys to the evaluator payload keys
   const parsedPayload = {
     mobility: {
       distanceKm: parsedJSON.mobility?.distanceKm || 0,
-      mode: parsedJSON.mobility?.mode === 'metro' ? 'metroTransit' : (parsedJSON.mobility?.mode || 'none')
+      mode: parsedJSON.mobility?.mode === 'metro' ? 'metroTransit' : (parsedJSON.mobility?.mode || 'none'),
+      vehicleName: mobilityLabel
     },
     diet: {
-      mealImpact: parsedJSON.diet?.mealImpact || 'none'
+      mealImpact: parsedJSON.diet?.mealImpact || 'none',
+      dietDesc: dietLabel
     },
     appliances: {
-      durationHours: parsedJSON.appliances?.durationHours || 0
+      durationHours: parsedJSON.appliances?.durationHours || 0,
+      applianceName: 'high-draw appliance'
     }
   };
 
@@ -206,14 +219,13 @@ export async function parseWithGeminiAI(text, coefficients) {
   const activities = [];
 
   if (parsedPayload.mobility.mode !== 'none' && parsedPayload.mobility.distanceKm > 0) {
-    const label = parsedPayload.mobility.mode === 'metroTransit' ? 'metro transit' : parsedPayload.mobility.mode;
     let savings = 0;
     if (coefficients[parsedPayload.mobility.mode] < coefficients.automobile) {
       savings = (parsedPayload.mobility.distanceKm * coefficients.automobile) - evaluation.mobilityEmitted;
     }
     activities.push({
       category: 'mobility',
-      description: `Traveled ${parsedPayload.mobility.distanceKm} km by ${label} (AI Parsed)`,
+      description: `Traveled ${parsedPayload.mobility.distanceKm} km by ${mobilityLabel} (AI Parsed)`,
       emitted: evaluation.mobilityEmitted,
       savings
     });
@@ -253,6 +265,7 @@ export async function parseWithGeminiAI(text, coefficients) {
     totalEmitted: evaluation.totalEmitted,
     totalSaved: evaluation.totalSaved,
     calculatedHealth: evaluation.avatarHealth,
-    activities
+    activities,
+    parsedPayload
   };
 }
