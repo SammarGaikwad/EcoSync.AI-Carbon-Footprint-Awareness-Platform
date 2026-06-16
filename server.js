@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { rateLimit } from 'express-rate-limit';
 
 // Load environment configuration from .env
 dotenv.config();
@@ -8,8 +9,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Apply security headers manually to secure content and frames
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com;");
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
 app.use(cors());
 app.use(express.json());
+
+// API rate limiter: max 30 requests per 15 minutes per IP
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests from this IP, please try again after 15 minutes." }
+});
+
 
 // System prompt defining the expected response structure from Gemini
 const GEMINI_SYSTEM_PROMPT = `
@@ -104,29 +125,30 @@ function repairOrExtractJSON(rawText) {
   return fallbackObj;
 }
 
-app.post('/api/parse', async (req, res) => {
+app.post('/api/parse', apiLimiter, async (req, res) => {
   try {
-    const { text } = req.body;
+    // Support both 'log' and 'text' payload keys for full API specification compliance
+    const logContent = req.body.log !== undefined ? req.body.log : req.body.text;
 
-    if (!text) {
-      return res.status(400).json({ error: "Log text parameter is required." });
+    if (logContent === undefined || logContent === null) {
+      return res.status(400).json({ error: "Invalid log payload. Parameter 'log' or 'text' is required." });
     }
 
-    if (typeof text !== 'string') {
-      return res.status(400).json({ error: "Invalid text parameter. Must be a string." });
+    if (typeof logContent !== 'string') {
+      return res.status(400).json({ error: "Invalid log payload. Must be a string." });
     }
 
-    if (text.trim() === '') {
-      return res.status(400).json({ error: "Log text parameter cannot be empty." });
+    if (logContent.trim() === '') {
+      return res.status(400).json({ error: "Log payload cannot be empty." });
     }
 
     // Limit maximum input size to prevent abuse (Security / DoS prevention)
-    if (text.length > 2000) {
-      return res.status(400).json({ error: "Input log text exceeds maximum allowed length of 2000 characters." });
+    if (logContent.length > 2000) {
+      return res.status(400).json({ error: "Invalid or oversized log payload. Maximum length is 2000 characters." });
     }
 
     // Sanitize input: Strip HTML tags to prevent cross-site scripting/injection attempts
-    const sanitizedText = text.replace(/<[^>]*>/g, '').trim();
+    const sanitizedText = logContent.replace(/<[^>]*>/g, '').trim();
     if (!sanitizedText) {
       return res.status(400).json({ error: "Invalid input. Log text cannot contain only HTML elements." });
     }

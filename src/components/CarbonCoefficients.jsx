@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sliders, RefreshCw } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 /**
  * CarbonCoefficients Component
@@ -91,5 +92,22 @@ export default function CarbonCoefficients({
     </div>
   );
 }
+
+CarbonCoefficients.propTypes = {
+  factors: PropTypes.shape({
+    car: PropTypes.number.isRequired,
+    scooter: PropTypes.number.isRequired,
+    transit: PropTypes.number.isRequired,
+    dietHigh: PropTypes.number.isRequired,
+    dietMed: PropTypes.number.isRequired,
+    dietLow: PropTypes.number.isRequired,
+    applianceHigh: PropTypes.number.isRequired,
+    energyGrid: PropTypes.number.isRequired,
+  }).isRequired,
+  handleFactorChange: PropTypes.func.isRequired,
+  handleResetCoefficients: PropTypes.func.isRequired,
+  showConfig: PropTypes.bool.isRequired,
+  setShowConfig: PropTypes.func.isRequired,
+};
 
 

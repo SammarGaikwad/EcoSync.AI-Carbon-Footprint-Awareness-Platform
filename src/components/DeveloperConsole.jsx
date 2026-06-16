@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clipboard } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 /**
  * DeveloperConsole Component
@@ -33,3 +34,9 @@ export default function DeveloperConsole({ minifiedJSONString, handleCopyClipboa
     </div>
   );
 }
+
+DeveloperConsole.propTypes = {
+  minifiedJSONString: PropTypes.string.isRequired,
+  handleCopyClipboard: PropTypes.func.isRequired,
+};
+

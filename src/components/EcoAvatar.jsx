@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldAlert, Award, Compass, Trees } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 /**
  * Premium EcoAvatar Component
@@ -383,3 +384,13 @@ export default function EcoAvatar({ netImpact, avatarState }) {
     </div>
   );
 }
+
+EcoAvatar.propTypes = {
+  netImpact: PropTypes.number.isRequired,
+  avatarState: PropTypes.shape({
+    level: PropTypes.string.isRequired,
+    health: PropTypes.number.isRequired,
+    color: PropTypes.string.isRequired,
+    desc: PropTypes.string.isRequired,
+  }).isRequired,
+};

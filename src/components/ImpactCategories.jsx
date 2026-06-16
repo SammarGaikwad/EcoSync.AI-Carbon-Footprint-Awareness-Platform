@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigation, Leaf, Plug, Zap } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 /**
  * ImpactCategories Component
@@ -93,3 +94,13 @@ export default function ImpactCategories({ categoryTotals, totalEmitted }) {
     </div>
   );
 }
+
+ImpactCategories.propTypes = {
+  categoryTotals: PropTypes.shape({
+    mobility: PropTypes.number.isRequired,
+    diet: PropTypes.number.isRequired,
+    appliances: PropTypes.number.isRequired,
+    energy: PropTypes.number.isRequired,
+  }).isRequired,
+  totalEmitted: PropTypes.number.isRequired,
+};
