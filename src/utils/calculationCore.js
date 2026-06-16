@@ -13,6 +13,9 @@
  * @returns {Object} Calculated metrics (emitted, saved, avatar health, and state name).
  */
 export function calculateDailyImpact(parsedJSON, uiConstants) {
+  const data = parsedJSON || {};
+  const constants = uiConstants || {};
+
   const result = {
     mobilityEmitted: 0,
     dietEmitted: 0,
@@ -25,37 +28,37 @@ export function calculateDailyImpact(parsedJSON, uiConstants) {
   };
 
   // 1. Mobility Calculations & Transit Offset Delta
-  const distance = parsedJSON.mobility?.distanceKm || 0;
-  const mode = parsedJSON.mobility?.mode || 'none';
+  const distance = data.mobility?.distanceKm || 0;
+  const mode = data.mobility?.mode || 'none';
   
-  if (mode !== 'none' && uiConstants[mode] !== undefined) {
-    result.mobilityEmitted = distance * uiConstants[mode];
+  if (mode !== 'none' && constants[mode] !== undefined) {
+    result.mobilityEmitted = distance * constants[mode];
     
     // Calculate potential carbon savings if public transit or scooter was selected over a standard vehicle
-    if (uiConstants[mode] < uiConstants.automobile) {
-      result.totalSaved += (distance * uiConstants.automobile) - result.mobilityEmitted;
+    if (constants[mode] < constants.automobile) {
+      result.totalSaved += (distance * constants.automobile) - result.mobilityEmitted;
     }
   }
 
   // 2. Dietary Carbon Threshold Mapping
-  const dietType = parsedJSON.diet?.mealImpact || 'none';
+  const dietType = data.diet?.mealImpact || 'none';
   if (dietType === 'high-impact') {
-    result.dietEmitted = uiConstants.highImpactMeal;
+    result.dietEmitted = constants.highImpactMeal;
   } else if (dietType === 'medium-impact') {
-    result.dietEmitted = uiConstants.mediumImpactMeal;
+    result.dietEmitted = constants.mediumImpactMeal;
   } else if (dietType === 'low-impact') {
-    result.dietEmitted = uiConstants.lowImpactMeal;
+    result.dietEmitted = constants.lowImpactMeal;
     // Compute alternative choice savings relative to a standard high-impact baseline meal
-    result.totalSaved += (uiConstants.highImpactMeal - uiConstants.lowImpactMeal);
+    result.totalSaved += (constants.highImpactMeal - constants.lowImpactMeal);
   }
 
   // 3. High-Draw Appliance Computations
-  const hours = parsedJSON.appliances?.durationHours || 0;
-  result.applianceEmitted = hours * uiConstants.highDrawAppliance;
+  const hours = data.appliances?.durationHours || 0;
+  result.applianceEmitted = hours * constants.highDrawAppliance;
 
   // 4. Grid Electricity Computations
-  const kwh = parsedJSON.energy?.kwh || 0;
-  result.energyEmitted = kwh * (uiConstants.energyGrid !== undefined ? uiConstants.energyGrid : 0.50);
+  const kwh = data.energy?.kwh || 0;
+  result.energyEmitted = kwh * (constants.energyGrid !== undefined ? constants.energyGrid : 0.50);
 
   // 5. Aggregations & Dynamic Eco-Avatar Health Calibration
   result.totalEmitted = result.mobilityEmitted + result.dietEmitted + result.applianceEmitted + result.energyEmitted;

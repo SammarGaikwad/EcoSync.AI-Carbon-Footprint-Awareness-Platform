@@ -67,6 +67,14 @@ You are the background telemetry extraction engine for EcoSync.AI. Your sole tas
 
 // Helper utility to validate, extract, and repair JSON strings from LLM output
 function repairOrExtractJSON(rawText) {
+  if (!rawText || typeof rawText !== 'string') {
+    return {
+      mobility: { distanceKm: 0, mode: "none" },
+      diet: { mealImpact: "none" },
+      appliances: { durationHours: 0 },
+      energy: { kwh: 0 }
+    };
+  }
   const cleanText = rawText.trim();
   
   // 1. Direct parse attempt
@@ -130,7 +138,8 @@ function repairOrExtractJSON(rawText) {
 
 app.post('/api/parse', apiLimiter, async (req, res) => {
   try {
-    const logContent = req.body.log !== undefined ? req.body.log : req.body.text;
+    const body = req.body || {};
+    const logContent = body.log !== undefined ? body.log : body.text;
 
     if (logContent === undefined || logContent === null) {
       return res.status(400).json({ error: "Invalid log payload. Parameter 'log' or 'text' is required." });
