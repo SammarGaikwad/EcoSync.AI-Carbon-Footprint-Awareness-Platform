@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Leaf, Flame, Zap, Navigation, ShieldCheck, 
-  MessageSquare, ArrowUpRight, Sliders, Clipboard, 
-  RefreshCw, AlertCircle, Sparkles, CheckCircle2,
-  Plug, Brain, Key, Eye, EyeOff, Cpu, Globe, Info,
-  TrendingUp, CheckSquare, Square, BarChart3, Activity
+  Leaf, Flame, Zap, ShieldCheck, MessageSquare, 
+  AlertCircle, Sparkles, CheckCircle2, Brain, Cpu, 
+  Info, TrendingUp, CheckSquare, Square, BarChart3, 
+  Activity
 } from 'lucide-react';
 import { parseLocalLog, parseWithGeminiAI } from './utils/parserEngine';
 import { calculateDailyImpact } from './utils/calculationCore';

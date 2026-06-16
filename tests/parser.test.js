@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseLocalLog } from '../src/utils/parserEngine.js';
+import app from '../api/parse.js';
 
 // Setup active scientific coefficients matching defaults
 const coefficients = {
@@ -68,5 +69,67 @@ describe('EcoSync.AI Parser Engine Unit Tests', () => {
     // Total Savings Math:
     // 2.7 + 5.6 = 8.3 kg CO2e
     expect(result.totalSaved).toBeCloseTo(8.3);
+  });
+
+  it('should sanitize HTML tags from log input to prevent injection (XSS validation)', () => {
+    const dirtyInput = "<script>alert('xss')</script>Had a vegan salad and commuted 10 km by train";
+    const result = parseLocalLog(dirtyInput, coefficients);
+    expect(result.diet.emitted).toBeCloseTo(0.40);
+    expect(result.mobility.emitted).toBeCloseTo(0.20);
+  });
+
+  it('should gracefully parse and evaluate logs with negative distances or hours without crashing', () => {
+    const invalidInput = "Traveled -15 km by car and ran AC for -2 hours";
+    const result = parseLocalLog(invalidInput, coefficients);
+    expect(result.totalEmitted).toBeGreaterThanOrEqual(0);
+    expect(result.totalEmitted).not.toBeNaN();
+  });
+
+  it('should return 400 when log payload parameter is missing in Express handler', async () => {
+    const route = app.router.stack.find(layer => layer.route && layer.route.path === '/api/parse');
+    const handler = route.route.stack[route.route.stack.length - 1].handle;
+    
+    let responseStatus = null;
+    let responseJson = null;
+    
+    const req = { body: {} };
+    const res = {
+      status(code) {
+        responseStatus = code;
+        return this;
+      },
+      json(data) {
+        responseJson = data;
+        return this;
+      }
+    };
+    
+    await handler(req, res);
+    expect(responseStatus).toBe(400);
+    expect(responseJson.error).toContain("Invalid log payload");
+  });
+
+  it('should return 400 when log payload exceeds 2000 characters in Express handler', async () => {
+    const route = app.router.stack.find(layer => layer.route && layer.route.path === '/api/parse');
+    const handler = route.route.stack[route.route.stack.length - 1].handle;
+    
+    let responseStatus = null;
+    let responseJson = null;
+    
+    const req = { body: { log: "a".repeat(2001) } };
+    const res = {
+      status(code) {
+        responseStatus = code;
+        return this;
+      },
+      json(data) {
+        responseJson = data;
+        return this;
+      }
+    };
+    
+    await handler(req, res);
+    expect(responseStatus).toBe(400);
+    expect(responseJson.error).toContain("oversized log payload");
   });
 });
