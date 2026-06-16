@@ -13,6 +13,18 @@ import { calculateDailyImpact } from './calculationCore.js';
  * @returns {Object} Normalized parsing results, including structured emissions details and activities.
  */
 export function parseLocalLog(text, coefficients) {
+  const coeff = {
+    automobile: coefficients?.automobile !== undefined ? coefficients.automobile : 0.20,
+    scooter: coefficients?.scooter !== undefined ? coefficients.scooter : 0.10,
+    metroTransit: coefficients?.metroTransit !== undefined ? coefficients.metroTransit : 0.02,
+    highImpactMeal: coefficients?.highImpactMeal !== undefined ? coefficients.highImpactMeal : 6.00,
+    mediumImpactMeal: coefficients?.mediumImpactMeal !== undefined ? coefficients.mediumImpactMeal : 1.50,
+    lowImpactMeal: coefficients?.lowImpactMeal !== undefined ? coefficients.lowImpactMeal : 0.40,
+    highDrawAppliance: coefficients?.highDrawAppliance !== undefined ? coefficients.highDrawAppliance : 0.80,
+    energyGrid: coefficients?.energyGrid !== undefined ? coefficients.energyGrid : 0.50,
+  };
+  coefficients = coeff;
+
   if (!text || text.trim() === '') {
     return {
       mobility: { emitted: 0, details: '' },
