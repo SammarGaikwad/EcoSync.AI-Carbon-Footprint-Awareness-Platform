@@ -32,6 +32,11 @@ export default function ImpactCategories({ categoryTotals, totalEmitted }) {
             <div 
               className="bg-cyan-400 h-full rounded-full transition-all duration-500" 
               style={{ width: `${getCategoryPercent(categoryTotals.mobility)}%` }}
+              role="progressbar"
+              aria-valuenow={Math.round(getCategoryPercent(categoryTotals.mobility)) || 0}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-label="Mobility carbon footprint percentage"
             ></div>
           </div>
         </div>
@@ -50,6 +55,11 @@ export default function ImpactCategories({ categoryTotals, totalEmitted }) {
             <div 
               className="bg-emerald-400 h-full rounded-full transition-all duration-500" 
               style={{ width: `${getCategoryPercent(categoryTotals.diet)}%` }}
+              role="progressbar"
+              aria-valuenow={Math.round(getCategoryPercent(categoryTotals.diet)) || 0}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-label="Diet carbon footprint percentage"
             ></div>
           </div>
         </div>
@@ -68,6 +78,11 @@ export default function ImpactCategories({ categoryTotals, totalEmitted }) {
             <div 
               className="bg-orange-500 h-full rounded-full transition-all duration-500" 
               style={{ width: `${getCategoryPercent(categoryTotals.appliances)}%` }}
+              role="progressbar"
+              aria-valuenow={Math.round(getCategoryPercent(categoryTotals.appliances)) || 0}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-label="Appliances carbon footprint percentage"
             ></div>
           </div>
         </div>
@@ -86,6 +101,11 @@ export default function ImpactCategories({ categoryTotals, totalEmitted }) {
             <div 
               className="bg-yellow-400 h-full rounded-full transition-all duration-500" 
               style={{ width: `${getCategoryPercent(categoryTotals.energy)}%` }}
+              role="progressbar"
+              aria-valuenow={Math.round(getCategoryPercent(categoryTotals.energy)) || 0}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-label="Energy carbon footprint percentage"
             ></div>
           </div>
         </div>
