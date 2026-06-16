@@ -11,6 +11,7 @@ const coefficients = {
   mediumImpactMeal: 1.50,
   lowImpactMeal: 0.40,
   highDrawAppliance: 0.80,
+  energyGrid: 0.50,
 };
 
 describe('EcoSync.AI Parser Engine Unit Tests', () => {
@@ -83,6 +84,22 @@ describe('EcoSync.AI Parser Engine Unit Tests', () => {
     const result = parseLocalLog(invalidInput, coefficients);
     expect(result.totalEmitted).toBeGreaterThanOrEqual(0);
     expect(result.totalEmitted).not.toBeNaN();
+  });
+
+  it('should parse and evaluate grid electricity usage in kWh and units correctly', () => {
+    const energyText = "Today I consumed 12 kWh of electricity. In the evening, I used another 5 units of power.";
+    const result = parseLocalLog(energyText, coefficients);
+
+    // Energy Math:
+    // 12 kWh + 5 units (kWh) = 17 kWh total
+    // 17 * 0.50 = 8.5 kg CO2e
+    expect(result.energy.emitted).toBeCloseTo(8.5);
+    expect(result.totalEmitted).toBeCloseTo(8.5);
+    expect(result.activities).toHaveLength(2);
+    expect(result.activities[0].category).toBe('energy');
+    expect(result.activities[0].description).toBe('Consumed 12 kWh of grid electricity');
+    expect(result.activities[1].description).toBe('Consumed 5 kWh of grid electricity');
+    expect(result.parsedPayload.energy.kwh).toBe(12);
   });
 
   it('should return 400 when log payload parameter is missing in Express handler', async () => {

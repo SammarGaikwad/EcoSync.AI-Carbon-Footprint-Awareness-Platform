@@ -3,7 +3,7 @@ import {
   Leaf, Flame, Zap, ShieldCheck, MessageSquare, 
   AlertCircle, Sparkles, CheckCircle2, Brain, Cpu, 
   Info, TrendingUp, CheckSquare, Square, BarChart3, 
-  Activity
+  Activity, Globe
 } from 'lucide-react';
 import { parseLocalLog, parseWithGeminiAI } from './utils/parserEngine';
 import { calculateDailyImpact } from './utils/calculationCore';
@@ -244,6 +244,7 @@ export default function App() {
       mediumImpactMeal: activeFactors.dietMed,
       lowImpactMeal: activeFactors.dietLow,
       highDrawAppliance: activeFactors.applianceHigh,
+      energyGrid: activeFactors.energyGrid,
     };
 
     // Check cache to avoid redundant parse calls during coefficient updates
@@ -288,6 +289,16 @@ export default function App() {
           description: `Ran ${label} for ${cachedPayload.appliances.durationHours} hours${isAI ? ' (AI Parsed)' : ''}`,
           category: 'appliances',
           carbon_impact_kg: evaluation.applianceEmitted,
+          _savings_kg: 0
+        });
+      }
+
+      if (cachedPayload.energy && cachedPayload.energy.kwh > 0) {
+        reconstructedActivities.push({
+          timestamp_marker: "Current",
+          description: `Consumed ${cachedPayload.energy.kwh} kWh of grid electricity${isAI ? ' (AI Parsed)' : ''}`,
+          category: 'energy',
+          carbon_impact_kg: evaluation.energyEmitted,
           _savings_kg: 0
         });
       }

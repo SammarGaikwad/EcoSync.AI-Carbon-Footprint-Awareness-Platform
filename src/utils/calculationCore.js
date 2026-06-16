@@ -17,6 +17,7 @@ export function calculateDailyImpact(parsedJSON, uiConstants) {
     mobilityEmitted: 0,
     dietEmitted: 0,
     applianceEmitted: 0,
+    energyEmitted: 0,
     totalEmitted: 0,
     totalSaved: 0,
     avatarHealth: 50, // Default baseline matching UI initialization
@@ -52,8 +53,12 @@ export function calculateDailyImpact(parsedJSON, uiConstants) {
   const hours = parsedJSON.appliances?.durationHours || 0;
   result.applianceEmitted = hours * uiConstants.highDrawAppliance;
 
-  // 4. Aggregations & Dynamic Eco-Avatar Health Calibration
-  result.totalEmitted = result.mobilityEmitted + result.dietEmitted + result.applianceEmitted;
+  // 4. Grid Electricity Computations
+  const kwh = parsedJSON.energy?.kwh || 0;
+  result.energyEmitted = kwh * (uiConstants.energyGrid !== undefined ? uiConstants.energyGrid : 0.50);
+
+  // 5. Aggregations & Dynamic Eco-Avatar Health Calibration
+  result.totalEmitted = result.mobilityEmitted + result.dietEmitted + result.applianceEmitted + result.energyEmitted;
   
   // Dynamic Scaling Algorithm: Starts at a perfect 100%, drops relative to total daily emissions impact
   result.avatarHealth = Math.max(0, Math.min(100, Math.round(100 - (result.totalEmitted * 4))));

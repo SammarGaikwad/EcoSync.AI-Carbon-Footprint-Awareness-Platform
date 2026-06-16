@@ -204,21 +204,51 @@ export function parseLocalLog(text, coefficients) {
     }
   });
 
-  const totalEmitted = mobilityEmitted + dietEmitted + applianceEmitted;
+  // 4. Energy Parser: Matches electricity usage in kWh or units
+  let primaryEnergy = { kwh: 0 };
+  let energyEmitted = 0;
+  
+  const energyPattern = /(\d+(?:\.\d+)?)\s*(?:kwh|units?)\s*(?:of\s*(?:electricity|power|energy))?/gi;
+  
+  const foundEnergy = [];
+  energyPattern.lastIndex = 0;
+  while ((match = energyPattern.exec(text)) !== null) {
+    const kwh = parseFloat(match[1]);
+    foundEnergy.push({ kwh });
+  }
+  
+  foundEnergy.forEach(({ kwh }) => {
+    const emitted = kwh * (coefficients.energyGrid !== undefined ? coefficients.energyGrid : 0.50);
+    energyEmitted += emitted;
+    
+    activities.push({
+      category: 'energy',
+      description: `Consumed ${kwh} kWh of grid electricity`,
+      emitted,
+      savings: 0
+    });
+    
+    if (primaryEnergy.kwh === 0) {
+      primaryEnergy = { kwh };
+    }
+  });
+
+  const totalEmitted = mobilityEmitted + dietEmitted + applianceEmitted + energyEmitted;
   const totalSaved = mobilitySaved + dietSaved;
   const calculatedHealth = Math.max(0, Math.min(100, Math.round(100 - (totalEmitted * 4))));
 
   const parsedPayload = {
     mobility: primaryMobility,
     diet: dietPayload,
-    appliances: appliancesPayload
+    appliances: appliancesPayload,
+    energy: primaryEnergy
   };
 
   return {
     mobility: { emitted: mobilityEmitted, details: '' },
     diet: { emitted: dietEmitted, details: '' },
     appliances: { emitted: applianceEmitted, details: '' },
-    energy: { emitted: 0, details: '' },
+    energy: { emitted: energyEmitted, details: '' },
     totalEmitted,
     totalSaved,
     calculatedHealth,
@@ -227,10 +257,6 @@ export function parseLocalLog(text, coefficients) {
   };
 }
 
-/**
- * Strategy 2: Gemini 2.5 Structured JSON System Prompt
- * Ensures high-accuracy mapping of complex text logs into structured telemetry data.
- */
 export const GEMINI_SYSTEM_PROMPT = `
 You are the background telemetry extraction engine for EcoSync.AI. Your sole task is to process an unstructured daily activity log text and map it into a strict, minified JSON object matching the schema below.
 
@@ -250,6 +276,9 @@ You are the background telemetry extraction engine for EcoSync.AI. Your sole tas
   },
   "appliances": {
     "durationHours": float
+  },
+  "energy": {
+    "kwh": float
   }
 }
 
@@ -257,6 +286,7 @@ You are the background telemetry extraction engine for EcoSync.AI. Your sole tas
 - Mobility: Map words like "car", "uber", "cab", "automobile" -> "automobile". Map "scooter", "bike", "vespa" -> "scooter". Map "train", "metro", "subway", "local train" -> "metro".
 - Diet: Map "vegan", "salad", "plant-based", "vegetarian" -> "low-impact". Map "chicken", "fish", "poultry" -> "medium-impact". Map "beef", "meat", "steak", "pork" -> "high-impact".
 - Appliances: Identify heavy appliance usage (like air conditioners, heaters, or gaming PCs) and normalize durations to decimal hours (e.g., "30 mins" maps to 0.5, "3 hours" maps to 3.0).
+- Energy: Identify grid electricity consumption and extract the value in decimal kWh (e.g. "10 kWh" or "10 units" maps to 10.0).
 
 ### User Log to Parse:
 `;
@@ -301,6 +331,9 @@ export async function parseWithGeminiAI(text, coefficients) {
     appliances: {
       durationHours: parsedJSON.appliances?.durationHours || 0,
       applianceName: 'high-draw appliance'
+    },
+    energy: {
+      kwh: parsedJSON.energy?.kwh || 0
     }
   };
 
@@ -349,11 +382,20 @@ export async function parseWithGeminiAI(text, coefficients) {
     });
   }
 
+  if (parsedPayload.energy.kwh > 0) {
+    activities.push({
+      category: 'energy',
+      description: `Consumed ${parsedPayload.energy.kwh} kWh of grid electricity (AI Parsed)`,
+      emitted: evaluation.energyEmitted,
+      savings: 0
+    });
+  }
+
   return {
     mobility: { emitted: evaluation.mobilityEmitted, details: '' },
     diet: { emitted: evaluation.dietEmitted, details: '' },
     appliances: { emitted: evaluation.applianceEmitted, details: '' },
-    energy: { emitted: 0, details: '' },
+    energy: { emitted: evaluation.energyEmitted, details: '' },
     totalEmitted: evaluation.totalEmitted,
     totalSaved: evaluation.totalSaved,
     calculatedHealth: evaluation.avatarHealth,

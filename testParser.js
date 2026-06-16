@@ -9,6 +9,7 @@ const coefficients = {
   mediumImpactMeal: 1.50,
   lowImpactMeal: 0.40,
   highDrawAppliance: 0.80,
+  energyGrid: 0.50,
 };
 
 console.log("Starting EcoSync.AI Parser Engine Unit Tests...\n");
@@ -72,5 +73,12 @@ const dirtyResult = parseLocalLog(dirtyInput, coefficients);
 assert.strictEqual(dirtyResult.diet.emitted, 0.40);
 assert.strictEqual(dirtyResult.mobility.emitted, 5 * 0.02);
 console.log("✅ Passed Test Case 8: Parser processes logs containing HTML tags gracefully");
+
+// Test Case 9: Grid electricity parsing
+const energyInput = "Consumed 14 kWh of grid electricity and used another 6 units of power";
+const energyResult = parseLocalLog(energyInput, coefficients);
+assert.strictEqual(energyResult.energy.emitted, 20 * 0.50); // 14 + 6 = 20 kWh * 0.50
+assert.strictEqual(energyResult.parsedPayload.energy.kwh, 14); // first matches
+console.log("✅ Passed Test Case 9: Grid electricity parsing and footprint evaluation operate correctly");
 
 console.log("\n🚀 All parser unit tests passed successfully!");

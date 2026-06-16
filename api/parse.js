@@ -50,6 +50,9 @@ You are the background telemetry extraction engine for EcoSync.AI. Your sole tas
   },
   "appliances": {
     "durationHours": float
+  },
+  "energy": {
+    "kwh": float
   }
 }
 
@@ -57,6 +60,7 @@ You are the background telemetry extraction engine for EcoSync.AI. Your sole tas
 - Mobility: Map words like "car", "uber", "cab", "automobile" -> "automobile". Map "scooter", "bike", "vespa" -> "scooter". Map "train", "metro", "subway", "local train" -> "metro".
 - Diet: Map "vegan", "salad", "plant-based", "vegetarian" -> "low-impact". Map "chicken", "fish", "poultry" -> "medium-impact". Map "beef", "meat", "steak", "pork" -> "high-impact".
 - Appliances: Identify heavy appliance usage (like air conditioners, heaters, or gaming PCs) and normalize durations to decimal hours (e.g., "30 mins" maps to 0.5, "3 hours" maps to 3.0).
+- Energy: Identify grid electricity consumption and extract the value in decimal kWh (e.g. "10 kWh" or "10 units" maps to 10.0).
 
 ### User Log to Parse:
 `;
@@ -84,7 +88,8 @@ function repairOrExtractJSON(rawText) {
   const fallbackObj = {
     mobility: { distanceKm: 0, mode: "none" },
     diet: { mealImpact: "none" },
-    appliances: { durationHours: 0 }
+    appliances: { durationHours: 0 },
+    energy: { kwh: 0 }
   };
 
   const distanceMatch = cleanText.match(/["']?distanceKm["']?\s*:\s*(\d+(?:\.\d+)?)/i);
@@ -113,6 +118,11 @@ function repairOrExtractJSON(rawText) {
   const hoursMatch = cleanText.match(/["']?durationHours["']?\s*:\s*(\d+(?:\.\d+)?)/i);
   if (hoursMatch) {
     fallbackObj.appliances.durationHours = parseFloat(hoursMatch[1]);
+  }
+
+  const kwhMatch = cleanText.match(/["']?kwh["']?\s*:\s*(\d+(?:\.\d+)?)/i);
+  if (kwhMatch) {
+    fallbackObj.energy.kwh = parseFloat(kwhMatch[1]);
   }
 
   return fallbackObj;
