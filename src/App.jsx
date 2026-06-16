@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Leaf, Flame, Zap, Navigation, ShieldCheck, 
   MessageSquare, ArrowUpRight, Sliders, Clipboard, 
@@ -94,9 +94,11 @@ export default function App() {
   ]);
 
   // Derived pledged savings sum
-  const pledgedSavings = pledges
-    .filter(p => p.active)
-    .reduce((sum, p) => sum + p.savings, 0);
+  const pledgedSavings = useMemo(() => {
+    return pledges
+      .filter(p => p.active)
+      .reduce((sum, p) => sum + p.savings, 0);
+  }, [pledges]);
 
   // Set system clock
   useEffect(() => {
@@ -388,85 +390,19 @@ export default function App() {
     setPledges(pledges.map(p => p.id === id ? { ...p, active: !p.active } : p));
   };
 
-  // --- Gamified Eco Avatar Engine ---
-  const getAvatarState = () => {
-    const net = (summary.total_saved_kg + pledgedSavings) - summary.total_emitted_kg;
-    const dynamicHealth = Math.max(0, Math.min(100, Math.round(100 - (summary.total_emitted_kg * 4))));
-    if (activities.length === 0 && pledgedSavings === 0) {
-      return { level: "Seedling Sprout", health: 50, color: "w-1/2 bg-zinc-500", desc: "No logs logged today — Avatar dormant" };
-    }
-    if (net >= 6) {
-      return { level: "Old Growth Forest", health: dynamicHealth, color: "w-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]", desc: `${dynamicHealth}% health — Peak offset achieved!` };
-    }
-    if (net >= 2) {
-      return { level: "Blooming Canopy", health: dynamicHealth, color: "w-4/5 bg-emerald-400", desc: `${dynamicHealth}% health — Exceptional carbon savings today` };
-    }
-    if (net >= -1) {
-      return { level: "Young Sapling", health: dynamicHealth, color: "w-[55%] bg-cyan-400", desc: `${dynamicHealth}% health — Close to carbon neutral. Keep going!` };
-    }
-    if (net >= -10) {
-      return { level: "Sprout", health: dynamicHealth, color: "w-[30%] bg-amber-500", desc: `${dynamicHealth}% health — High emissions are outstripping savings` };
-    }
-    return { level: "Dry Scrubland", health: dynamicHealth, color: "w-[10%] bg-rose-500", desc: `${dynamicHealth}% health — Critical footprint warning!` };
-  };
-
-  const avatar = getAvatarState();
-
-  // --- JSON Exporter ---
-  const targetJSON = {
-    summary: {
-      total_emitted_kg: summary.total_emitted_kg,
-      total_saved_kg: summary.total_saved_kg
-    },
-    activities: activities.map(act => ({
-      timestamp_marker: act.timestamp_marker,
-      description: act.description,
-      category: act.category,
-      carbon_impact_kg: act.carbon_impact_kg
-    })),
-    contextual_nudge: contextualNudge
-  };
-
-  const minifiedJSONString = JSON.stringify(targetJSON);
-
-  const handleCopyClipboard = () => {
-    navigator.clipboard.writeText(minifiedJSONString).then(() => {
-      setToastMessage("Minified JSON Copied to Clipboard!");
-      setShowCopyToast(true);
-      setTimeout(() => setShowCopyToast(false), 2000);
-    });
-  };
-
-  const saveCurrentDayToHistory = () => {
-    const categoryTotals = { mobility: 0, diet: 0, appliances: 0, energy: 0 };
+  // Compute category details for visual progress bars (memoized)
+  const categoryTotals = useMemo(() => {
+    const totals = { mobility: 0, diet: 0, appliances: 0, energy: 0 };
     activities.forEach(act => {
-      if (categoryTotals[act.category] !== undefined) {
-        categoryTotals[act.category] += act.carbon_impact_kg;
+      if (totals[act.category] !== undefined) {
+        totals[act.category] += act.carbon_impact_kg;
       }
     });
+    return totals;
+  }, [activities]);
 
-    const todayFootprint = {
-      date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      timestamp: Date.now(),
-      emitted: summary.total_emitted_kg,
-      saved: summary.total_saved_kg + pledgedSavings,
-      mobility: categoryTotals.mobility,
-      diet: categoryTotals.diet,
-      appliances: categoryTotals.appliances,
-      energy: categoryTotals.energy
-    };
-
-    const updatedHistory = [...history, todayFootprint].slice(-7);
-    setHistory(updatedHistory);
-    localStorage.setItem("ecosync_historical_footprints", JSON.stringify(updatedHistory));
-    
-    setToastMessage("Current day logged to weekly history!");
-    setShowCopyToast(true);
-    setTimeout(() => setShowCopyToast(false), 2000);
-  };
-
-  // Compute Rolling Baseline & Deltas
-  const calculateDeltas = () => {
+  // Compute Rolling Baseline & Deltas (memoized)
+  const deltas = useMemo(() => {
     if (history.length === 0) {
       return {
         mobility: { percent: 0, text: "No baseline (0 kg)" },
@@ -502,17 +438,76 @@ export default function App() {
       appliances: getDeltaVal(categoryTotals.appliances, avgAppliances),
       overall: getDeltaVal(summary.total_emitted_kg, avgOverall)
     };
+  }, [history, categoryTotals, summary.total_emitted_kg]);
+
+  // --- Gamified Eco Avatar Engine ---
+  const avatar = useMemo(() => {
+    const net = (summary.total_saved_kg + pledgedSavings) - summary.total_emitted_kg;
+    const dynamicHealth = Math.max(0, Math.min(100, Math.round(100 - (summary.total_emitted_kg * 4))));
+    if (activities.length === 0 && pledgedSavings === 0) {
+      return { level: "Seedling Sprout", health: 50, color: "w-1/2 bg-zinc-500", desc: "No logs logged today — Avatar dormant" };
+    }
+    if (net >= 6) {
+      return { level: "Old Growth Forest", health: dynamicHealth, color: "w-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]", desc: `${dynamicHealth}% health — Peak offset achieved!` };
+    }
+    if (net >= 2) {
+      return { level: "Blooming Canopy", health: dynamicHealth, color: "w-4/5 bg-emerald-400", desc: `${dynamicHealth}% health — Exceptional carbon savings today` };
+    }
+    if (net >= -1) {
+      return { level: "Young Sapling", health: dynamicHealth, color: "w-[55%] bg-cyan-400", desc: `${dynamicHealth}% health — Close to carbon neutral. Keep going!` };
+    }
+    if (net >= -10) {
+      return { level: "Sprout", health: dynamicHealth, color: "w-[30%] bg-amber-500", desc: `${dynamicHealth}% health — High emissions are outstripping savings` };
+    }
+    return { level: "Dry Scrubland", health: dynamicHealth, color: "w-[10%] bg-rose-500", desc: `${dynamicHealth}% health — Critical footprint warning!` };
+  }, [summary, pledgedSavings, activities]);
+
+  // --- JSON Exporter ---
+  const minifiedJSONString = useMemo(() => {
+    const targetJSON = {
+      summary: {
+        total_emitted_kg: summary.total_emitted_kg,
+        total_saved_kg: summary.total_saved_kg
+      },
+      activities: activities.map(act => ({
+        timestamp_marker: act.timestamp_marker,
+        description: act.description,
+        category: act.category,
+        carbon_impact_kg: act.carbon_impact_kg
+      })),
+      contextual_nudge: contextualNudge
+    };
+    return JSON.stringify(targetJSON);
+  }, [summary, activities, contextualNudge]);
+
+  const handleCopyClipboard = () => {
+    navigator.clipboard.writeText(minifiedJSONString).then(() => {
+      setToastMessage("Minified JSON Copied to Clipboard!");
+      setShowCopyToast(true);
+      setTimeout(() => setShowCopyToast(false), 2000);
+    });
   };
 
-  // Compute category details for visual progress bars
-  const categoryTotals = { mobility: 0, diet: 0, appliances: 0, energy: 0 };
-  activities.forEach(act => {
-    if (categoryTotals[act.category] !== undefined) {
-      categoryTotals[act.category] += act.carbon_impact_kg;
-    }
-  });
+  const saveCurrentDayToHistory = () => {
+    const todayFootprint = {
+      date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      timestamp: Date.now(),
+      emitted: summary.total_emitted_kg,
+      saved: summary.total_saved_kg + pledgedSavings,
+      mobility: categoryTotals.mobility,
+      diet: categoryTotals.diet,
+      appliances: categoryTotals.appliances,
+      energy: categoryTotals.energy
+    };
 
-  const deltas = calculateDeltas();
+    const updatedHistory = [...history, todayFootprint].slice(-7);
+    setHistory(updatedHistory);
+    localStorage.setItem("ecosync_historical_footprints", JSON.stringify(updatedHistory));
+    
+    setToastMessage("Current day logged to weekly history!");
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 2000);
+  };
 
   const getCategoryPercent = (catVal) => {
     if (summary.total_emitted_kg === 0) return 0;
@@ -795,9 +790,9 @@ export default function App() {
 
                   {/* API Error Display */}
                   {apiError && (
-                    <div className="bg-rose-950/30 border border-rose-500/20 text-rose-300 rounded-lg p-3 text-[10px] font-mono leading-normal flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                      <span>{apiError}</span>
+                    <div className="bg-amber-950/30 border border-amber-500/20 text-amber-300 rounded-lg p-3 text-[10px] font-mono leading-normal flex items-start gap-2 shadow-[0_0_10px_rgba(245,158,11,0.15)] animate-pulse">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <span className="font-bold">{apiError}</span>
                     </div>
                   )}
                 </div>
