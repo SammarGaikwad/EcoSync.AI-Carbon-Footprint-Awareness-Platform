@@ -148,6 +148,11 @@ export default function App() {
       const direction = factors.applianceHigh < SCIENTIFIC_DEFAULTS.applianceHigh ? "lower load" : "higher load";
       factorDeltas.push(`Adjusted high-draw appliance rate to ${factors.applianceHigh} kg/hr (${pct}% ${direction}).`);
     }
+    if (factors.energyGrid !== SCIENTIFIC_DEFAULTS.energyGrid) {
+      const pct = Math.abs(Math.round(((SCIENTIFIC_DEFAULTS.energyGrid - factors.energyGrid) / SCIENTIFIC_DEFAULTS.energyGrid) * 100));
+      const direction = factors.energyGrid < SCIENTIFIC_DEFAULTS.energyGrid ? "cleaner" : "more carbon-heavy";
+      factorDeltas.push(`Customized grid electricity factor of ${factors.energyGrid} kg/kWh is ${pct}% ${direction} than default standards.`);
+    }
 
     if (factorDeltas.length > 0) {
       return `${factorDeltas[0]} Calculations are executing dynamically on your cached payload.`;
@@ -185,19 +190,19 @@ export default function App() {
     }
 
     if (maxCat === "mobility" && maxVal > 0) {
-      return `Your mobility choices contributed ${maxVal.toFixed(1)} kg CO₂e; try choosing public rail, metro transit, or electric scooters for your next commute.`;
+      return `Your mobility choices contributed ${maxVal.toFixed(1)} kg CO₂e today. Try activating our "Commit to public transit over driving" pledge below to dynamically offset this!`;
     }
 
     if (maxCat === "diet" && maxVal > 0) {
-      return `Your diet contributed ${maxVal.toFixed(1)} kg CO₂e today; incorporating more low-impact vegetarian or plant-based meals can drastically reduce this footprint.`;
+      return `Your diet contributed ${maxVal.toFixed(1)} kg CO₂e today. Try activating our "Eat plant-based vegan lunch instead of meat" pledge below to lower this impact!`;
     }
 
     if (maxCat === "appliances" && maxVal > 0) {
-      return `High-draw appliances contributed ${maxVal.toFixed(1)} kg CO₂e today; consider using natural ventilation, setting geyser timers, or using appliance eco-modes.`;
+      return `High-draw appliances contributed ${maxVal.toFixed(1)} kg CO₂e today. Try activating our "Turn off AC" or "Unplug standby vampire appliances" pledges below!`;
     }
 
     if (maxCat === "energy" && maxVal > 0) {
-      return `Your grid energy consumption contributed ${maxVal.toFixed(1)} kg CO₂e today; consider transitioning to solar or green energy providers to lower this footprint.`;
+      return `Your grid energy consumption contributed ${maxVal.toFixed(1)} kg CO₂e today. Try activating our "Transition to 100% solar/renewables grid" pledge below to slash these emissions!`;
     }
 
     return "Small daily adjustments like choosing rail transits or low-impact diet options can help you lower your carbon footprint tomorrow.";
